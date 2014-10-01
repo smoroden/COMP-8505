@@ -60,7 +60,9 @@ int main (int argc, char **argv)
     // Set SO_REUSEADDR so that the port can be resused for further invocations of the application
     arg = 1;
     if (setsockopt (Addr_Ptr->RawSocket, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) == -1)
-    perror("setsockopt");
+        perror("setsockopt");
+
+    send_packet(Addr_Ptr);
 
     return 0;
 }
@@ -94,7 +96,7 @@ void send_packet(struct AddrInfo *UserAddr)
     iph->protocol = IPPROTO_UDP;
     iph->check = 0;      	//Initialize to zero before calculating checksum
     iph->saddr = inet_addr (UserAddr->SrcHost);  //Source IP address
-    iph->daddr = sin.sin_addr.s_addr;
+    iph->daddr = inet_addr (UserAddr->DstHost);  //Destination IP address
 
     iph->check = csum ((unsigned short *) datagram, iph->tot_len >> 1);
 
@@ -106,7 +108,7 @@ void send_packet(struct AddrInfo *UserAddr)
 
     // calcluate the IP checksum
     psh.source_address = inet_addr(UserAddr->SrcHost);
-    psh.dest_address = sin.sin_addr.s_addr;
+    psh.dest_address = inet_addr (UserAddr->DstHost);
     psh.placeholder = 0;
     psh.protocol = IPPROTO_UDP;
     psh.udp_length = htons(sizeof(struct udphdr) + strlen(data));
@@ -127,6 +129,10 @@ void send_packet(struct AddrInfo *UserAddr)
     if (sendto (UserAddr->RawSocket, datagram, iph->tot_len, 0, (struct sockaddr *) &sin, sizeof (sin)) < 0)
     {
     	perror ("sendto");
+    }
+    else
+    {
+        printf("Packet Sent!\n");
     }
 }
 
