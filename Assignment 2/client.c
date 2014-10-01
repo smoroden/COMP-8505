@@ -69,12 +69,12 @@ int main (int argc, char **argv)
 
 void send_packet(struct AddrInfo *UserAddr)
 {
-    char datagram[PKT_SIZE], *data; 	// set the Datagram (packet) size
+    char datagram[PKT_SIZE], *data, *pseudogram;; 	// set the Datagram (packet) size
     struct iphdr *iph = (struct iphdr *) datagram;	 //IP header
     struct udphdr *udph = (struct udphdr *) (datagram + sizeof (struct ip));	//UDP header
     struct sockaddr_in sin;
     pseudo_header psh;
-
+    printf("%s\n", UserAddr->DstHost);
     sin.sin_family = AF_INET;
     sin.sin_port = htons (UserAddr->dport);
     sin.sin_addr.s_addr = inet_addr (UserAddr->DstHost);
@@ -96,7 +96,7 @@ void send_packet(struct AddrInfo *UserAddr)
     iph->protocol = IPPROTO_UDP;
     iph->check = 0;      	//Initialize to zero before calculating checksum
     iph->saddr = inet_addr (UserAddr->SrcHost);  //Source IP address
-    iph->daddr = inet_addr (UserAddr->DstHost);  //Destination IP address
+    iph->daddr = sin.sin_addr.s_addr;
 
     iph->check = csum ((unsigned short *) datagram, iph->tot_len >> 1);
 
@@ -108,22 +108,18 @@ void send_packet(struct AddrInfo *UserAddr)
 
     // calcluate the IP checksum
     psh.source_address = inet_addr(UserAddr->SrcHost);
-    psh.dest_address = inet_addr (UserAddr->DstHost);
+    psh.dest_address = sin.sin_addr.s_addr;
     psh.placeholder = 0;
     psh.protocol = IPPROTO_UDP;
     psh.udp_length = htons(sizeof(struct udphdr) + strlen(data));
 
-    memcpy(&psh.udp , udph , sizeof (struct udphdr));
+    int psize = sizeof(pseudo_header) + sizeof(struct udphdr) + strlen(data);
+    pseudogram = malloc(psize);
 
-    udph->check = csum( (unsigned short*) &psh , sizeof (pseudo_header));
+    memcpy(pseudogram , (char*) &psh , sizeof (pseudo_header));
+    memcpy(pseudogram + sizeof(pseudo_header) , udph , sizeof(struct udphdr) + strlen(data));
 
-    //IP_HDRINCL to stop the kernel from building the packet headers
-    {
-        int one = 1;
-        const int *val = &one;
-        if (setsockopt (UserAddr->RawSocket, IPPROTO_IP, IP_HDRINCL, val, sizeof (one)) < 0)
-            perror ("setsockopt");
-    }
+    udph->check = csum( (unsigned short*) pseudogram , psize);
 
     //Send the packet
     if (sendto (UserAddr->RawSocket, datagram, iph->tot_len, 0, (struct sockaddr *) &sin, sizeof (sin)) < 0)
@@ -143,7 +139,6 @@ char* encrypt(char* key, char* string)
     for(i=0; i<string_length; i++)
     {
         string[i]=string[i]^key[i];
-        printf("%i", string[i]);
     }
     return string;
 }

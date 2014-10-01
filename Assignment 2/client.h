@@ -14,7 +14,7 @@
 #define DEFAULT_IP_ID		12345
 #define DEFAULT_SRC_IP		"192.168.1.5"
 #define OPTIONS 		    "?h:d:s:p:c:"
-#define ENCRYPTION_KEY      "56xfek92g"
+#define ENCRYPTION_KEY      "zdehjk"
 
 // Globals
 typedef struct    //needed for checksum calculation
