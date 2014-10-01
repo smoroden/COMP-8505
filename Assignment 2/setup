@@ -1,0 +1,6 @@
+#!/bin/bash
+
+yum install ruby-devel -y
+gem install RubyInline
+make clean
+make

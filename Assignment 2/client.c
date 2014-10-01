@@ -69,12 +69,12 @@ int main (int argc, char **argv)
 
 void send_packet(struct AddrInfo *UserAddr)
 {
-    char datagram[PKT_SIZE], *data, *pseudogram;; 	// set the Datagram (packet) size
+    char datagram[PKT_SIZE], *data; 	// set the Datagram (packet) size
     struct iphdr *iph = (struct iphdr *) datagram;	 //IP header
     struct udphdr *udph = (struct udphdr *) (datagram + sizeof (struct ip));	//UDP header
     struct sockaddr_in sin;
     pseudo_header psh;
-    printf("%s\n", UserAddr->DstHost);
+
     sin.sin_family = AF_INET;
     sin.sin_port = htons (UserAddr->dport);
     sin.sin_addr.s_addr = inet_addr (UserAddr->DstHost);
@@ -113,18 +113,22 @@ void send_packet(struct AddrInfo *UserAddr)
     psh.protocol = IPPROTO_UDP;
     psh.udp_length = htons(sizeof(struct udphdr) + strlen(data));
 
-    int psize = sizeof(pseudo_header) + sizeof(struct udphdr) + strlen(data);
-    pseudogram = malloc(psize);
+    memcpy(&psh.udp , udph , sizeof (struct udphdr));
 
-    memcpy(pseudogram , (char*) &psh , sizeof (pseudo_header));
-    memcpy(pseudogram + sizeof(pseudo_header) , udph , sizeof(struct udphdr) + strlen(data));
+    udph->check = csum( (unsigned short*) &psh , sizeof (pseudo_header));
 
-    udph->check = csum( (unsigned short*) pseudogram , psize);
-
+    //IP_HDRINCL to stop the kernel from building the packet headers
+    {
+        int one = 1;
+        const int *val = &one;
+        if (setsockopt (UserAddr->RawSocket, IPPROTO_IP, IP_HDRINCL, val, sizeof (one)) < 0)
+            perror ("setsockopt");
+    }
     //Send the packet
     if (sendto (UserAddr->RawSocket, datagram, iph->tot_len, 0, (struct sockaddr *) &sin, sizeof (sin)) < 0)
     {
     	perror ("sendto");
+    	exit(1);
     }
     else
     {
