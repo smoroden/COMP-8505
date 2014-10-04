@@ -1,6 +1,10 @@
 #!/bin/bash
 
 yum install ruby-devel -y
+yum install libpcap-devel -y
 gem install RubyInline
+gem install packetfu
+gem install pcaprub
+
 make clean
 make
