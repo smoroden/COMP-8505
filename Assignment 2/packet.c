@@ -36,7 +36,9 @@ void send_packet(struct AddrInfo *UserAddr)
 
     //Data part
     data = datagram + sizeof(struct iphdr) + sizeof(struct udphdr);
+    printf("%s", UserAddr->cmd);
     strcpy(data , encrypt(ENCRYPTION_KEY, UserAddr->cmd));
+
 
     //IP Header Fields
     iph->ihl = 5;		// IP Header Length
