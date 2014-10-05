@@ -32,8 +32,9 @@ int main (int argc, char **argv)
     PcapInfo *pcap_ptr;
     char *interface;
     char temp[BUFLEN];
-    int arg, opt;
+    int arg, opt, bytes_read, nbytes = BUFLEN;
     bpf_u_int32 maskp;          // subnet mask
+    char *test;
 
     memset(errbuf,0,PCAP_ERRBUF_SIZE);
 
@@ -124,7 +125,16 @@ int main (int argc, char **argv)
 
     while(1) {
         printf("\nPlease enter a covert command (or type quit): ");
-        scanf("%s", Addr_Ptr->cmd);
+        //scanf("%s", Addr_Ptr->cmd);
+        bytes_read = getline(&Addr_Ptr->cmd, &nbytes, stdin);
+        if(bytes_read == -1)
+        {
+            printf("%s", "Error!");
+        }
+        else
+        {
+            printf("You typed: %s", Addr_Ptr->cmd);
+        }
         if(strcmp(Addr_Ptr->cmd, "quit") == 0)
             break;
         send_packet(Addr_Ptr);
