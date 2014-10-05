@@ -3,7 +3,8 @@
 --
 --	PROGRAM:		    client
 --
---	FUNCTIONS:		    Berkeley Socket API
+--	FUNCTIONS:		    see packet.c
+--                      see utils.c
 --
 --	LAST MODIFIED:		October 6, 2014
 --

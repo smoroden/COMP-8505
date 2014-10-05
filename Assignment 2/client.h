@@ -23,7 +23,7 @@
 #define DEFAULT_IP_ID		12345
 #define MAXLINE			    80
 #define DEFAULT_SRC_IP		"192.168.0.5"
-#define OPTIONS 		    "?h:d:s:p:c:"
+#define OPTIONS 		    "?h:d:s:p:i:"
 #define ENCRYPTION_KEY      "zdehjk"  //Ensure this is the same as the backdoor key
 #define FILTER              "udp and src host %s and src port %d and dst port %d" //current backdoor looks for specific src_ip, src and dst ports
 #define DEFAULT_INTERFACE   "em1"
