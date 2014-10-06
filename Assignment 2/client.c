@@ -20,7 +20,7 @@
 --
 --  OUTPUT: secrets.txt - will be saved in the program root directory.
 --
---	USAGE: ./client -d <Destination IP> -p [Destination Port] -h [Source IP] -s [Source Port] -i [Interface]
+--	USAGE: ./client -d [Destination IP] -p [Destination Port] -h [Source IP] -s [Source Port] -i [Interface]
 --
 --------------------------------------------------------------------------------------------------------------*/
 #include "client.h"
