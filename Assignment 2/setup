@@ -1,10 +1,11 @@
 #!/bin/bash
 
-# need to download scapy
+# Need to go to http://www.secdev.org/projects/scapy/files/scapy-latest.tar.gz and install
 yum install libpcap-devel -y
 yum install python-devel -y
 yum install python-pip -y
 pip install setproctitle
+
 
 make clean
 make
