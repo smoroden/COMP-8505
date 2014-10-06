@@ -17,8 +17,8 @@
 
 #define PKT_SIZE		    4096
 #define BUFLEN              1024
-#define DEFAULT_DST_PORT	8080
-#define DEFAULT_SRC_PORT	11234
+#define DEFAULT_DST_PORT	7999
+#define DEFAULT_SRC_PORT	8000
 #define DEFAULT_TTL		    255
 #define DEFAULT_IP_ID		12345
 #define MAXLINE			    80

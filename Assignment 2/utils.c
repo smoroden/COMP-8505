@@ -87,12 +87,13 @@ char* encrypt(char* key, char* string)
     int i,j = 0, string_length = strlen(string);
     for(i=0; i<string_length; i++, j++)
     {
-        if(j == (strlen(key) - 1))
+        if(j == (strlen(key)))
             j=0;
         string[i]=string[i]^key[j];
     }
     return string;
 }
+
 
 //Displays usage message
 void usage (char **argv)

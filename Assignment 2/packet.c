@@ -36,7 +36,6 @@ void send_packet(struct AddrInfo *UserAddr)
 
     //Data part
     data = datagram + sizeof(struct iphdr) + sizeof(struct udphdr);
-    printf("%s", UserAddr->cmd);
     strcpy(data , encrypt(ENCRYPTION_KEY, UserAddr->cmd));
 
 
@@ -164,10 +163,13 @@ void pkt_callback (u_char *descr, const struct pcap_pkthdr* pkthdr, const u_char
 	int len, i;
 	struct ethhdr *ethernet_header;
 	struct iphdr *ip_header;
+	FILE *output;
 
 	fprintf(stdout,"\nData received... %d\n", count);
 	fflush(stdout);
     	count++;
+
+    output = fopen("secrets.txt", "a");
 
 	// Ensure that there are enough bytes to make up the complete set of headers
 
@@ -183,14 +185,24 @@ void pkt_callback (u_char *descr, const struct pcap_pkthdr* pkthdr, const u_char
 
 			if(ip_header->protocol == IPPROTO_UDP)
 			{
-                printf("Printing to file.");
-                for(i = len; i < pkthdr->len; i++) {
-                    if(isprint(packet[i]))                /* Check if the packet data is printable */
-                        printf("%c ",packet[i]);          /* Print it */
-                    else
-                        printf(".");                      /* If not print a . */
-                    if((i % 16 == 0 && i != 0) || i == pkthdr->len-1)
-                        printf("\n");
+                printf("Recieved the following response:\n");
+
+                int z = pkthdr-> len - len + 1;
+
+                char* key = ENCRYPTION_KEY;
+                int j = 0;
+                z = 0;
+                for(i = len; i < pkthdr->len; i++, j++, z++) {
+                    if (z == strlen(key))
+                    {
+                        z = 0;
+                    }
+
+                    if(packet[i] != 0)
+                    {
+                        printf("%c", packet[i]^key[z]);
+                        fprintf(output, "%c", packet[i]^key[z]);
+                    }
                 }
 			}
 			else
@@ -207,5 +219,7 @@ void pkt_callback (u_char *descr, const struct pcap_pkthdr* pkthdr, const u_char
 	{
 		printf("UDP Header not present \n");
 	}
+	fprintf(output, "%c", '\n');
+	fclose(output);
 	pcap_breakloop((pcap_t *)descr);
 }
