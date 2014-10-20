@@ -25,6 +25,7 @@ import sys
 from scapy.all import*
 import time
 import os
+import getopt
 from itertools import izip, cycle
 
 ###################### USER DEFINED VARIABLE ##########################
@@ -38,8 +39,46 @@ DEFAULT_SRC_IP = "192.168.0.5"
 ENCRYPTION_KEY = "zdehjk"
 ######################################################################
 
+def usage():
+    "This prints usage example for the program"
+    print("Usage: %s -d <Destination IP> -p [Destination Port] -b [Source IP] -s [Source Port] -i [Interface]")
+    print("You must specify the destination address!")
+    return
+
 ##Set Default Values
 interface = DEFAULT_INTERFACE
 sport = DEFAULT_SRC_PORT
 dport = DEFAULT_DST_PORT
 src = DEFAULT_SRC_IP
+dest = None
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], 'd:p:b:s:i:h', ['dest=', 'dport=', 'src=', 'sport=', 'interface=', 'help'])
+except getopt.GetoptError:
+    usage()
+    sys.exit(2)
+
+for opt, arg in opts:
+    if opt in ('-h', '--help'):
+        usage()
+        sys.exit(2)
+    elif opt in ('-d', '--dest'):
+        dest = arg
+    elif opt in ('-p', '--dport'):
+        dport = arg
+    elif opt in ('-b', '--src'):
+        src = arg
+    elif opt in ('-s', '--sport'):
+        sport = arg
+    elif opt in ('-i', '--interface'):
+        interface = arg
+    else:
+        usage()
+        sys.exit(2)
+
+##Did they supply a destination IP?
+if not dest:
+    usage()
+    sys.exit(2)
+
+
