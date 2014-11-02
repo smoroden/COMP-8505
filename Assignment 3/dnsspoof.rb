@@ -138,23 +138,27 @@ def get_info(packet)
     end
 
     # Get the new length for the next level(in hex)
-    len = "0x"+packet.payload[i].unpack('h*')[0].chr
+    if packet.payload[i] != nil
+      len = "0x"+packet.payload[i].unpack('h*')[0].chr
+      # Increase counter to skip the length
+      i += 1
 
-    # Increase counter to skip the length
-    i += 1
-
-    # Stop when we get a length of 0
-    # otherwise add a '.' to the domain and calculate the new length
-    if len == '0x0'
-      x = false
+      # Stop when we get a length of 0
+      # otherwise add a '.' to the domain and calculate the new length
+      if len == '0x0'
+        x = false
+      else
+        domain += '.'
+        last = i + len.hex
+      end
     else
-      domain += '.'
-      last = i + len.hex
+      x = false
     end
+
+
+
+
   end
-
-  puts "Spoofing to: " + domain
-
 
   return domain
 end
@@ -171,7 +175,6 @@ def sniff(iface)
     if $dnsQuery == '10'
       domain = get_info(packet)
 
-      #generate_spoofDNS(domain, trans_id, packet)
       sendResponse(packet, domain)
     end
 
