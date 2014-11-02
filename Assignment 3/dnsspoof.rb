@@ -23,7 +23,7 @@ OptionParser.new do |opts|
 end.parse!
 
 #did they supply a victim and an address to spoof to?
-if $target_ip.nil? || $spoof_ip.nil?
+if $target_ip.nil?
   abort("You must specify the victim's IP address and an IP address to spoof!")
 end
 
