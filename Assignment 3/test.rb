@@ -56,6 +56,7 @@ def get_info(packet)
     end
 
     # Get the new length for the next level(in hex)
+
     len = "0x"+packet.payload[i].unpack('h*')[0].chr
 
     # Increase counter to skip the length
@@ -70,9 +71,6 @@ def get_info(packet)
       last = i + len.hex
     end
   end
-
-  puts "Spoofing to: " + domain
-
 
   return domain
 end
