@@ -16,7 +16,7 @@
 ##	This program listens for the client to send remote commands. They will be run, and the results sent
 ##  	back to the client encrypted.
 ##
-##  OUTPUT: commands/data is printed to standard out to easily see what is happening while testing.
+##  	OUTPUT: commands/data is printed to standard out to easily see what is happening while testing.
 ##
 ##	USAGE: python final_backdoor.py
 ##

