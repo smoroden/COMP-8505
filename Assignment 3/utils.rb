@@ -1,6 +1,6 @@
 ################ User Defined ##################
-$iface='wlp1s0'
-$router_ip='192.168.1.254'
+$iface='wlan0'
+$router_ip='192.168.0.1'
 CONFIG_FILE = 'config.txt'
 ################################################
 
