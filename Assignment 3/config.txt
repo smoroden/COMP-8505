@@ -1,4 +1,4 @@
-test.google.com 192.168.0.8
+test.google.com 17.178.96.59
 facebook.com 192.168.0.8
 google.com 192.168.0.5
 cascadiapps.com 192.168.0.8
