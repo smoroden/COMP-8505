@@ -1,5 +1,4 @@
 test.google.com 17.178.96.59
-facebook.com 192.168.0.21
-google.com 192.168.0.21
-cascadiapps.com www.smoroden.com
-www.microsoft.com 17.178.96.59
+facebook.com 199.16.156.102
+google.com 192.168.0.8
+

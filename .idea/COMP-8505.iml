@@ -21,7 +21,7 @@
       </EXTENSION>
       <EXTENSION ID="org.jetbrains.plugins.ruby.motion.run.MotionSimulatorRunExtension" />
       <RUBY_RUN_CONFIG NAME="SCRIPT_PATH" VALUE="$MODULE_DIR$/Assignment 3/dnsspoof.rb" />
-      <RUBY_RUN_CONFIG NAME="SCRIPT_ARGS" VALUE="-v 192.168.1.64" />
+      <RUBY_RUN_CONFIG NAME="SCRIPT_ARGS" VALUE="-v 192.168.0.13" />
       <RunnerSettings RunnerId="RubyRunner" />
       <ConfigurationWrapper RunnerId="RubyRunner" />
       <method />
@@ -119,11 +119,11 @@
   </component>
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$" />
-    <orderEntry type="jdk" jdkName="ruby-1.9.3-p550" jdkType="RUBY_SDK" />
+    <orderEntry type="jdk" jdkName="ruby-1.9.3-p194" jdkType="RUBY_SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
-    <orderEntry type="library" scope="PROVIDED" name="macaddr (v1.7.1, ruby-1.9.3-p550) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="packetfu (v1.1.10, ruby-1.9.3-p550) [gem]" level="application" />
-    <orderEntry type="library" scope="PROVIDED" name="systemu (v2.6.4, ruby-1.9.3-p550) [gem]" level="application" />
+    <orderEntry type="library" scope="PROVIDED" name="macaddr (v1.7.1, ruby-1.9.3-p194) [gem]" level="application" />
+    <orderEntry type="library" scope="PROVIDED" name="packetfu (v1.1.10, ruby-1.9.3-p194) [gem]" level="application" />
+    <orderEntry type="library" scope="PROVIDED" name="systemu (v2.6.4, ruby-1.9.3-p194) [gem]" level="application" />
   </component>
 </module>
 
