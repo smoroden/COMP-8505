@@ -1,6 +1,6 @@
 test.google.com 17.178.96.59
 facebook.com 199.16.156.102
 google.com www.bing.com
-duckduckgo.com www.yahoo.ca
 www.microsoft.com www.apple.ca
+theverge.com 192.168.0.8
 

