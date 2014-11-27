@@ -2,12 +2,14 @@ from itertools import izip, cycle
 
 ###################### USER DEFINED VARIABLE ##########################
 DEFAULT_INTERFACE = 'em1'
-DEFAULT_SRC_PORT = 8000
-DEFAULT_DST_PORT = 7999
+DEFAULT_SRC_PORT = 443
+DEFAULT_DST_PORT = 80
 DEFAULT_LISTENER = 80
 DEFAULT_SRC_IP = "192.168.0.5"
 
 ENCRYPTION_KEY = "zdehjk"
+
+FILENAME = "secrets.txt"
 ######################################################################
 
 # Set Default Values for packet struct

