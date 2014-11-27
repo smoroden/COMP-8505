@@ -8,6 +8,7 @@ KNOCKSEQUENCE = 0
 PACKET_LEN = 0
 PACKETS_RCVD = 0
 
+
 def sniff_packets(packet_filter):
     sniff(filter=packet_filter, prn=process_packet)
     return
@@ -29,11 +30,11 @@ def process_packet(data):
             elif PACKETS_RCVD < PACKET_LEN-2:
                 # Write data to file
                 with open(FILENAME, 'a') as f:
-                    f.write(data.load + "\n")
+                    f.write(xor_crypt(data.load) + "\n")
                 PACKETS_RCVD += 1
             else:
                 with open(FILENAME, 'a') as f:
-                    f.write(data.load + "\n")
+                    f.write(xor_crypt(data.load) + "\n")
                     f.write("\n--------------END TRANSMISSION--------------\n\n")
                 # Lock printing of responses to file, knock sequence expired. Must receive a new knock sequence.
                 KNOCKSEQUENCE = 0
