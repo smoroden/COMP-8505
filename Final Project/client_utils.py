@@ -12,14 +12,17 @@
 #
 # --------------------------------------------------------------------------------------------------------------------
 from itertools import izip, cycle
+import netifaces as ni
 
+# Get interface list; will be used to automatically find interface card and host IP
+interface_list = ni.interfaces()
 
 # ------------------- USER DEFINED VARIABLE --------------------------------------------------------------------------
-DEFAULT_INTERFACE = 'em1'
+# last interface card in list
+DEFAULT_INTERFACE = interface_list[-1]
 DEFAULT_SRC_PORT = 443
 DEFAULT_DST_PORT = 80
-DEFAULT_LISTENER = 80
-DEFAULT_SRC_IP = "192.168.0.5"
+DEFAULT_SRC_IP = ni.ifaddresses(DEFAULT_INTERFACE)[2][0]['addr']
 
 ENCRYPTION_KEY = "zdehjk"
 # Name of file containing outputted packet data
