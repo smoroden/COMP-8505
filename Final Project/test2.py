@@ -14,8 +14,11 @@ class EventHandler(pyinotify.ProcessEvent):
     def process_IN_DELETE(self, event):
         print "Removing:", event.pathname
 
+    def process_IN_MODIFY(self, event):
+        print "Modified:", event.pathname
+
 handler = EventHandler()
 notifier = pyinotify.Notifier(wm, handler)
-wdd = wm.add_watch('/tmp', pyinotify.ALL_EVENTS, rec=True, auto_add=True)
+wdd = wm.add_watch('/tmp/test', pyinotify.ALL_EVENTS, rec=True, auto_add=True)
 
 notifier.loop()
