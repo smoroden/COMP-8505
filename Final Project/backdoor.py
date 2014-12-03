@@ -1,5 +1,5 @@
 ###########################################################################################################
-# SOURCE FILE:		final_backdoor.py - A stealthy backdoor server that can execute remote commands
+# SOURCE FILE:		backdoor.py - A stealthy backdoor server that can execute remote commands
 #
 # PROGRAM:		    backdoor
 #
@@ -18,7 +18,7 @@
 #
 #  OUTPUT: commands/data is printed to standard out to easily see what is happening while testing.
 #
-#	USAGE: python final_backdoor.py
+#	USAGE: python backdoor.py
 #
 ##############################################################################################################
 

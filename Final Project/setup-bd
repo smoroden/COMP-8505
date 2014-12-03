@@ -21,6 +21,6 @@ yum install libpcap-devel -y
 yum install python-devel -y
 yum install python-pip -y
 pip install setproctitle
-yum install scapy -y
+pip install scapy -y
 pip install pyinotify
 pip install netifaces
