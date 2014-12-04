@@ -27,6 +27,6 @@ for i in list.items():
     print i[0]
 
 list.pop('/temp')
+print list.values()
 
-for i in list.items():
-    print i[0]
+print 'test' if '/tmp/.esd-0' in list.values()[0] else 'false'

