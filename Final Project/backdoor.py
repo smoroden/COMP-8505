@@ -52,7 +52,7 @@ CHANNEL = 80
 SEND_PORT = 443
 
 # File watching variables
-WATCH_DIR = '/tmp/test'
+WATCH_DIR = None                                    # Make WATCH_DIR None if not using a default watch
 MASK = pyinotify.IN_MODIFY | pyinotify.IN_CREATE | pyinotify.IN_DELETE
 EXTENSIONS = '.pdf,.docx,.doc,.txt,.rb,.py'
 
@@ -415,7 +415,8 @@ def fileMonitor(watch, q):
     notifier = pyinotify.ThreadedNotifier(wm, handler)
     notifier.start()
 
-    monitor_list[watch] = wm.add_watch(watch, MASK, rec=True, auto_add=True)
+    if watch != None:
+        monitor_list[watch] = wm.add_watch(watch, MASK, rec=True, auto_add=True)
 
     while True:
         try:
