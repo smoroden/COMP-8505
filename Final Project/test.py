@@ -1,10 +1,3 @@
-import netifaces as ni
+import os
 
-
-ip = ni.ifaddresses('em1')[2][0]['addr']
-print ip
-
-interface_list = ni.interfaces()
-
-
-print
+print os.path.isdir('/temp/test')
