@@ -60,7 +60,7 @@ def process_packet(data):
             # If first packet after knock, grab the number of inbound packets following
             if PACKET_LEN == 0:
                 PACKET_LEN = data[0][2].sport
-            elif PACKETS_RCVD < PACKET_LEN-2:
+            elif PACKETS_RCVD < PACKET_LEN-1:
                 # Write data to file
                 with open(FILENAME, 'a') as f:
                     f.write(xor_crypt(data.load) + "\n")
