@@ -57,7 +57,6 @@ def process_packet(data):
         if KNOCKSEQUENCE != 5:
             knock(data, "receive")
         else:
-            print PACKET_LEN
             # If first packet after knock, grab the number of inbound packets following
             if PACKET_LEN == 0:
                 PACKET_LEN = data[0][2].sport
@@ -152,7 +151,6 @@ def knock(data, mode):
             count += 1
     if mode == "receive":
         for port in ports:
-            print KNOCKSEQUENCE
             # If we get a valid port and password/port combo increment to check next password/port combo until 5
             if int(data[0][2].dport) == (int(port) + 10) and xor_crypt(data.load) == passwords[KNOCKSEQUENCE]:
                 KNOCKSEQUENCE += 1
