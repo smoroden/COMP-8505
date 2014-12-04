@@ -20,10 +20,7 @@
 yum install libpcap-devel -y
 yum install python-devel -y
 yum install python-pip -y
-yum install scapy -y
 pip install setproctitle
+pip install scapy -y
 pip install pyinotify
 pip install netifaces
-
-# If you want the backdoor to automatically start after setup uncomment the next line.
-#python backdoor.py&
